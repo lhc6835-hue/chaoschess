@@ -11,6 +11,7 @@ const VARIANTS = {
 const JINGLES = ["waveStart", "boss", "victory", "gameOver"];
 const BASE = "assets/audio/";
 const PREF_KEY = "chaoschess.audio.v1";
+const VER = "?v=2"; // 음원을 바꾸면 올려서 브라우저 캐시를 비워요
 
 let ctx = null, master, musicBus, sfxBus, duckGain;
 const buffers = new Map();
@@ -65,7 +66,7 @@ export function unlock() {
 
 async function load(path) {
   if (buffers.has(path)) return buffers.get(path);
-  const p = fetch(BASE + path)
+  const p = fetch(BASE + path + VER)
     .then((r) => r.arrayBuffer())
     .then((a) => new Promise((ok, bad) => ctx.decodeAudioData(a, ok, bad)))
     .catch(() => null);
@@ -149,7 +150,7 @@ export function music(key) {
     current = null;
   }
   if (!key) return;
-  const el = new Audio(BASE + `bgm/${key}.mp3`);
+  const el = new Audio(BASE + `bgm/${key}.mp3` + VER);
   el.loop = true;
   el.crossOrigin = "anonymous";
   const src = ctx.createMediaElementSource(el);
