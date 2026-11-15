@@ -12,6 +12,8 @@ import { BoardView, cellCX, cellFeet } from "../render/board-view.js";
 import { E } from "../render/anim.js";
 import * as FX from "../fx/effects.js";
 import { $, h, spriteCanvas, toast, modal, setGold, rarityTag, abilityLine } from "./common.js";
+import { sfx, jingle, music } from "../audio.js";
+import { idle } from "./transition.js";
 
 let view = null;
 let run = null;
@@ -19,11 +21,13 @@ let battle = null;
 let phase = "idle"; // player | busy | arrange | over
 let selected = null;
 let goHome = null;
+let defeatHome = null;
 
 const nameOf = (u) => PIECES[u.key]?.name ?? u.key;
 
 export function bindBattle(go) {
   goHome = () => go("home");
+  defeatHome = () => go("home", "defeat");
   $("#btn-retreat").addEventListener("click", async () => {
     if (phase === "over") return;
     const ok = await modal([h("h3", {}, "귀환할까요?"), h("p", {}, "지금까지 번 골드는 그대로 남아요. 이번 출전은 여기서 끝나요.")], [
@@ -113,6 +117,10 @@ async function startWave() {
   view.sync({ units: battle.units.filter((u) => u.team === "ally") }, { snap: true });
   $("#wave-tag").textContent = `웨이브 ${run.wave}`;
   setTurnTag("enemy", "적이 나타나요");
+  await idle();
+  const bossWave = run.wave % 5 === 0;
+  music(bossWave ? "boss" : "battle");
+  jingle(bossWave ? "boss" : "waveStart");
   await banner(`웨이브 ${run.wave}`, run.wave % 5 === 0 ? "마왕이 온다!" : `적 ${enemies.length}기`);
   enemies.sort((a, b) => a.y - b.y || Math.abs(a.x - 3.5) - Math.abs(b.x - 3.5));
   await Promise.all(enemies.map((u, i) => dropIn(u, i * 0.06)));
@@ -131,6 +139,7 @@ async function dropIn(u, delay) {
   vp.z = 0;
   vp.sq.v = 1.4;
   vp.sq.vel = 0;
+  view.sound(u.key === "demon" ? "boom" : "landHeavy", vp.x, { vol: 0.6, gap: 30 });
   view.spawnFx(FX.dust, { x: vp.x, y: vp.y, power: u.key === "demon" ? 2 : 1 });
   view.kickShake(u.key === "demon" ? 5 : 1);
 }
@@ -156,6 +165,7 @@ function playerTurn() {
 async function enemyTurn() {
   phase = "busy";
   setTurnTag("enemy", "적의 차례");
+  sfx("turn", { vol: 0.5 });
   $("#btn-pass").disabled = true;
   await view.clock.wait(0.35);
   if (hasAnyAction(battle, "enemy")) {
@@ -209,7 +219,10 @@ function payKills(evs) {
     d.gold += got;
     run.gold += got;
     save();
-    setTimeout(() => setGold($("#battle-gold"), d.gold), 450);
+    setTimeout(() => {
+      setGold($("#battle-gold"), d.gold);
+      sfx("coin", { vol: 0.6 });
+    }, 450);
   }
 }
 
@@ -224,6 +237,7 @@ async function waveClear() {
   save();
   setGold($("#battle-gold"), d.gold);
   log("sys", `웨이브 ${run.wave} 클리어! +${reward}G`);
+  jingle("victory");
   setTurnTag("ally", "웨이브 클리어");
   for (const vp of view.vps.values()) vp.sq.kick(8 + Math.random() * 6);
   await banner("웨이브 클리어", `+${reward}G`);
@@ -351,6 +365,7 @@ function select(u) {
   if (vp) {
     vp.sq.v = 0.82;
     vp.sq.vel = 0;
+    view.sound("select", vp.x, { vol: 0.6 });
   }
   showCard(u);
   if (!canAct(u)) {
@@ -387,6 +402,7 @@ function openMenu(me, c, opts) {
   buttons.push(h("button", { class: "btn k-cancel", onclick: () => closeMenu() }, "취소"));
   menu.replaceChildren(...buttons);
   menu.hidden = false;
+  sfx("open", { vol: 0.6 });
   const r = menu.getBoundingClientRect();
   let x = pos.x + pos.cell * 0.55, y = pos.y - pos.cell * 0.3;
   if (x + r.width > window.innerWidth - 8) x = pos.x - pos.cell * 0.55 - r.width;
@@ -480,7 +496,9 @@ async function finishRun(reason) {
   d.best = Math.max(d.best ?? 0, cleared);
   save();
   if (reason === "lose") {
+    music(null);
     await view.clock.wait(0.6);
+    jingle("gameOver");
     await banner("킹이 쓰러졌어요", "");
   }
   await modal(
@@ -493,10 +511,9 @@ async function finishRun(reason) {
     ],
     [{ label: "메인으로", value: true, cls: "btn-main" }],
   );
-  view.vps.clear();
-  view.pause();
   battle = null;
-  goHome();
+  if (reason === "lose") defeatHome();
+  else goHome();
 }
 
 // 자동 테스트용 도우미: 지금 할 수 있는 공격(없으면 전진)을 하나 알려줘요.

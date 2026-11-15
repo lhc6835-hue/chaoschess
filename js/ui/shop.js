@@ -26,7 +26,7 @@ function card(key, d) {
   const def = PIECES[key];
   const owned = d.owned.filter((u) => u.key === key).length;
   const afford = d.gold >= def.price;
-  const btn = h("button", { class: "btn btn-small " + (afford ? "btn-main" : ""), disabled: !afford }, "구매");
+  const btn = h("button", { class: "btn btn-small " + (afford ? "btn-main" : ""), disabled: !afford, "data-sfx": "buy" }, "구매");
   btn.addEventListener("click", () => {
     const u = buy(key);
     if (!u) return toast("골드가 부족해요.");

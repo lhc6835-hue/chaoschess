@@ -214,6 +214,32 @@ button { font: inherit; color: inherit; }
 .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--bg-deep); padding: 10px 18px; z-index: 50; box-shadow: 0 -3px 0 0 var(--edge), 0 3px 0 0 var(--edge), -3px 0 0 0 var(--edge), 3px 0 0 0 var(--edge); animation: toast-in .35s var(--spring); }
 @keyframes toast-in { from { transform: translate(-50%, 20px) scale(.8); opacity: 0; } }
 
+/* ── 화면 전환 ───────────────────────────────────────────── */
+.transition { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 100; image-rendering: pixelated; }
+
+/* ── 소리 ──────────────────────────────────────────────────── */
+.sound-btn {
+  position: fixed; left: 16px; bottom: 16px; z-index: 30; width: 40px; height: 40px; border: 0; cursor: pointer;
+  background: var(--bg-deep); display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding: 10px;
+  box-shadow: 0 -3px 0 0 var(--edge), 0 3px 0 0 var(--edge), -3px 0 0 0 var(--edge), 3px 0 0 0 var(--edge);
+  transition: transform .2s var(--spring);
+}
+.sound-btn:hover { transform: scale(1.08); }
+.sound-btn i { width: 4px; background: var(--brass-hi); animation: eq 1s ease-in-out infinite alternate; }
+.sound-btn i:nth-child(1) { height: 40%; animation-delay: -.3s; }
+.sound-btn i:nth-child(2) { height: 90%; animation-delay: -.7s; }
+.sound-btn i:nth-child(3) { height: 60%; }
+.sound-btn.off i { animation: none; height: 15%; background: var(--bone-dim); }
+@keyframes eq { to { transform: scaleY(.35); transform-origin: bottom; } }
+.sound-panel {
+  position: fixed; left: 16px; bottom: 66px; z-index: 30; background: var(--panel); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 210px;
+  box-shadow: 0 -3px 0 0 var(--edge), 0 3px 0 0 var(--edge), -3px 0 0 0 var(--edge), 3px 0 0 0 var(--edge);
+  animation: menu-in .28s var(--spring); transform-origin: bottom left;
+}
+.sound-panel label { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12px; }
+.sound-panel input[type=range] { width: 110px; accent-color: var(--brass); }
+.sound-panel .mute { justify-content: flex-start; color: var(--bone-dim); }
+
 /* ── 반응형 ────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .screen { padding: 14px 16px 28px; }

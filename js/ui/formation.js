@@ -2,6 +2,7 @@
 import { PIECES, STARTER } from "../data/pieces.js";
 import { load, save, sell, SLOT_COUNT } from "../save.js";
 import { $, h, spriteCanvas, toast, setGold, rarityTag, abilityLine } from "./common.js";
+import { sfx } from "../audio.js";
 
 let picked = null; // { uid, from: "roster" | slotIndex }
 
@@ -74,6 +75,7 @@ function clickSlot(slot) {
     }
     picked = null;
     save();
+    sfx("place", { delay: 0.04 });
   }
   renderFormation();
 }
@@ -92,7 +94,10 @@ export function bindFormation() {
     const d = load();
     const u = d.owned.find((o) => o.uid === picked.uid);
     const got = sell(picked.uid);
-    if (got) toast(`${PIECES[u.key].name}을(를) 팔고 ${got}G를 받았어요.`);
+    if (got) {
+      toast(`${PIECES[u.key].name}을(를) 팔고 ${got}G를 받았어요.`);
+      sfx("coin");
+    }
     picked = null;
     renderFormation();
   });
