@@ -108,6 +108,7 @@ export class BoardView {
       sq: new Spring(1, 520, 13), ox: new Spring(0, 300, 12), oy: new Spring(0, 300, 12),
       flash: 0, alpha: opts.alpha ?? 1, scale: opts.scale ?? 1, tilt: 0,
       hp: u.hp, maxHp: u.maxHp, ghost: u.hp, ghostDelay: 0, frozen: u.frozen > 0, cd: u.cd,
+      shield: u.shield ?? 0, poison: u.poison ?? 0,
       bob: Math.random() * 10,
     };
     this.vps.set(u.id, vp);
@@ -127,6 +128,8 @@ export class BoardView {
       vp.maxHp = u.maxHp;
       vp.frozen = u.frozen > 0;
       vp.cd = u.cd;
+      vp.shield = u.shield ?? 0;
+      vp.poison = u.poison ?? 0;
       if (snap) {
         vp.ghost = u.hp;
         vp.cx = u.x;
@@ -252,11 +255,20 @@ export class BoardView {
       vp.oy.kick((dy / L) * p * 0.6);
     }
     vp.hp = ev.hp;
+    vp.shield = ev.shield ?? vp.shield;
     vp.ghostDelay = 0.35;
-    this.sound(ev.crit || ev.dmg >= 4 ? "hitHeavy" : "hit", vp.x, { vol: 0.8 });
-    if (ev.guard) this.sound("metal", vp.x, { vol: 0.6, delay: 0.03 });
-    const col = ev.crit ? "#ffe45c" : vp.team === "enemy" ? "#ffffff" : "#ff8a8a";
-    this.float(String(ev.dmg), vp.x, vp.y - 24, col, { big: ev.crit || ev.dmg >= 4 });
+    if (ev.poison) {
+      this.sound("shadowHit", vp.x, { vol: 0.5 });
+      this.spawnFx(FX.impact, { x: vp.x, y: vp.y - BODY, kind: "poison", palette: FX.PALS.poison, size: 0.6 });
+    } else this.sound(ev.crit || ev.dmg >= 4 ? "hitHeavy" : "hit", vp.x, { vol: ev.splash ? 0.5 : 0.8 });
+    if (ev.guard || ev.stone) this.sound("metal", vp.x, { vol: 0.6, delay: 0.03 });
+    if (ev.absorbed) {
+      this.sound("metal", vp.x, { vol: 0.7 });
+      this.float(`막음 ${ev.absorbed}`, vp.x - 8, vp.y - 34, "#ffe9a0", { delay: 0.05 });
+    }
+    const col = ev.poison ? "#9dff5a" : ev.crit ? "#ffe45c" : vp.team === "enemy" ? "#ffffff" : "#ff8a8a";
+    if (ev.dmg > 0 || !ev.absorbed) this.float(String(ev.dmg), vp.x, vp.y - 24, col, { big: ev.crit || ev.dmg >= 4 });
+    if (ev.counter) this.float("반격", vp.x + 8, vp.y - 34, "#ffd47a", { delay: 0.08 });
     if (ev.crit) this.float("급습!", vp.x, vp.y - 34, "#ffe45c", { delay: 0.05 });
     if (ev.guard) this.float("수호", vp.x + 10, vp.y - 14, "#b9c4d6", { delay: 0.1 });
     this.kickShake(0.8 + ev.dmg * 0.5 + (ev.crit ? 1.5 : 0));
@@ -383,6 +395,58 @@ export class BoardView {
           await flushRecover();
           await this.appear(ev.unit, ev.fx);
           break;
+        case "poisoned": {
+          const vp = this.vps.get(ev.id);
+          if (!vp) break;
+          vp.poison = 3;
+          this.spawnFx(FX.impact, { x: vp.x, y: vp.y - BODY, kind: "poison", palette: FX.PALS.poison, size: 0.7 });
+          this.float("중독", vp.x, vp.y - 34, "#9dff5a", { delay: 0.1 });
+          break;
+        }
+        case "shield": {
+          const vp = this.vps.get(ev.id);
+          if (!vp) break;
+          vp.shield = ev.shield;
+          vp.sq.kick(8);
+          this.spawnFx(FX.freeze, { x: vp.x, y: vp.y, palette: FX.PALS.holy });
+          this.sound("promote", vp.x, { vol: 0.7 });
+          this.float("보호막", vp.x, vp.y - 34, "#ffe9a0");
+          await c.wait(0.25);
+          break;
+        }
+        case "revive": {
+          const vp = this.vps.get(ev.id);
+          if (!vp) break;
+          await c.wait(0.2);
+          this.spawnFx(FX.promote, { x: vp.x, y: vp.y, palette: FX.PALS.fire });
+          this.spawnFx(FX.impact, { x: vp.x, y: vp.y - BODY, kind: "fire", palette: FX.PALS.fire, size: 1.2 });
+          this.sound("fire", vp.x);
+          this.sound("promote", vp.x, { delay: 0.1 });
+          vp.hp = ev.hp;
+          vp.ghost = ev.hp;
+          vp.flash = 1;
+          vp.sq.v = 0.6;
+          this.float("환생!", vp.x, vp.y - 36, "#ffb347", { big: true });
+          await c.wait(0.45);
+          break;
+        }
+        case "explode": {
+          const x = cellCX(ev.x), y = cellFeet(ev.y);
+          this.spawnFx(FX.blast, { x, y: y - BODY });
+          this.sound("boom", x);
+          this.sound("burn", x, { delay: 0.05 });
+          this.kickShake(4);
+          this.punch = 0.8;
+          this.clock.hitstop(0.08);
+          await c.wait(0.12);
+          break;
+        }
+        case "swap": {
+          await flushRecover();
+          const a = this.vps.get(ev.a), b = this.vps.get(ev.b);
+          await Promise.all([a && this.moveTo(a, ev.pb.x, ev.pb.y, "blink"), b && this.moveTo(b, ev.pa.x, ev.pa.y, "blink")]);
+          break;
+        }
         case "haste": {
           const vp = this.vps.get(ev.id);
           if (vp) this.float("한 번 더!", vp.x, vp.y - 36, "#7af2c8", { big: true, delay: 0.3 });
@@ -415,6 +479,10 @@ export class BoardView {
       cleave: { style: "arc", palette: FX.PALS.blood, size: 1.35 },
       bone: { style: "claw", palette: FX.PALS.bone, size: 0.9 },
       claw: { style: "claw", palette: FX.PALS.blood, size: 0.9 },
+      palm: { style: "ring", palette: FX.PALS.holy, size: 1.1 },
+      voidcut: { style: "cross", palette: FX.PALS.shadow, size: 1.1 },
+      fang: { style: "claw", palette: FX.PALS.blood, size: 1.1 },
+      warcleave: { style: "arc", palette: FX.PALS.gold, size: 1.45 },
     };
     const PROJ = {
       arrow: { kind: "arrow", palette: FX.PALS.steel, impact: "spark", ipal: FX.PALS.steel, speed: 520, sLaunch: "draw", sHit: "thunk" },
@@ -422,13 +490,20 @@ export class BoardView {
       frost: { kind: "frost", palette: FX.PALS.ice, impact: "ice", ipal: FX.PALS.ice, speed: 300, sLaunch: "ice", sHit: "shatterIce" },
       shadow: { kind: "shadow", palette: FX.PALS.shadow, impact: "shadow", ipal: FX.PALS.shadow, speed: 260, sLaunch: "shadow", sHit: "shadowHit" },
       tick: { kind: "shadow", palette: FX.PALS.time, impact: "storm", ipal: FX.PALS.time, speed: 360, sLaunch: "tick", sHit: "laser" },
+      sling: { kind: "stone", palette: FX.PALS.stone, impact: "spark", ipal: FX.PALS.stone, speed: 260, size: 0.7, sLaunch: "whoosh", sHit: "thunk" },
+      venom: { kind: "poison", palette: FX.PALS.poison, impact: "poison", ipal: FX.PALS.poison, speed: 260, sLaunch: "shadow", sHit: "shadowHit" },
+      cannon: { kind: "cannon", palette: FX.PALS.stone, impact: "fire", ipal: FX.PALS.fire, speed: 300, size: 1.3, sLaunch: "boom", sHit: "burn" },
+      bomb: { kind: "bomb", palette: FX.PALS.fire, impact: "fire", ipal: FX.PALS.fire, speed: 220, sLaunch: "whoosh", sHit: "burn" },
+      mirage: { kind: "shadow", palette: FX.PALS.arcane, impact: "shadow", ipal: FX.PALS.arcane, speed: 280, sLaunch: "shadow", sHit: "shadowHit" },
+      arcane: { kind: "arcane", palette: FX.PALS.arcane, impact: "storm", ipal: FX.PALS.arcane, speed: 340, sLaunch: "laser", sHit: "zap" },
+      flame: { kind: "ember", palette: FX.PALS.fire, impact: "fire", ipal: FX.PALS.fire, speed: 320, size: 1.1, sLaunch: "fire", sHit: "burn" },
       hellfire: { kind: "hell", palette: FX.PALS.hell, impact: "hell", ipal: FX.PALS.hell, speed: 240, size: 1.3, sLaunch: "fire", sHit: "burn" },
     };
 
     if (MELEE[fx]) {
       const m = MELEE[fx];
       const rec = await this.lunge(vp, tx, ty);
-      const MSFX = { crush: "crush", hoof: "landHeavy", bash: "metal", cleave: "chop", daggers: "draw" };
+      const MSFX = { crush: "crush", hoof: "landHeavy", bash: "metal", cleave: "chop", daggers: "draw", palm: "hitHeavy", warcleave: "chop", fang: "slash", voidcut: "slash" };
       this.sound(MSFX[fx] ?? "slash", tx);
       for (const t of targets)
         this.spawnFx(FX.strike, { x: t.x, y: t.y - BODY, angle: ang, style: m.style, palette: m.palette, size: m.size });
@@ -443,6 +518,7 @@ export class BoardView {
       this.sound(p.sLaunch, sx, { vol: 0.7 });
       await c.wait(time);
       this.sound(p.sHit, tx);
+      if (fx === "cannon") (this.kickShake(3), (this.punch = 0.6));
       for (const t of targets) this.spawnFx(FX.impact, { x: t.x, y: t.y - BODY, kind: p.impact, palette: p.ipal, size: p.size ?? 1 });
       return null;
     }
@@ -519,6 +595,36 @@ export class BoardView {
         this.sound("haste", vp.x);
         await c.tween(0.3, (u) => (vp.z = 6 * (1 - u)), E.outBack);
         this.float("시간 가속", vp.x, vp.y - 28, "#7af2c8");
+        break;
+      case "meteor": {
+        const sx = tx - 70, sy = ty - 170, time = 0.5;
+        this.spawnFx(FX.projectile, { x: sx, y: sy, dx: tx - sx, dy: ty - BODY - sy, kind: "ember", palette: FX.PALS.arcane, time });
+        this.sound("fire", tx, { rate: 0.7 });
+        await c.tween(time, (u) => (vp.z = 6 * (1 - u)));
+        this.spawnFx(FX.blast, { x: tx, y: ty - BODY, palette: FX.PALS.arcane });
+        this.sound("boom", tx);
+        this.sound("zap", tx, { delay: 0.05 });
+        this.kickShake(5);
+        this.punch = 1;
+        this.clock.hitstop(0.1);
+        break;
+      }
+      case "ward":
+        await c.tween(0.12, (u) => (vp.z = 6 * (1 - u)));
+        break;
+      case "bats": {
+        const sx = vp.x, sy = vp.y - BODY - 6, dx = tx - sx, dy = ty - BODY - sy;
+        const time = Math.max(0.2, Math.hypot(dx, dy) / 240);
+        for (let i = 0; i < 3; i++) this.spawnFx(FX.projectile, { x: sx + (i - 1) * 4, y: sy - i * 3, dx: dx - (i - 1) * 4, dy: dy + i * 3, kind: "shadow", palette: FX.PALS.blood, time: time + i * 0.05 });
+        this.sound("shadow", sx);
+        await c.tween(time, (u) => (vp.z = 6 * (1 - u)));
+        this.sound("slash", tx);
+        break;
+      }
+      case "swap":
+        this.spawnFx(FX.warp, { x: vp.x, y: vp.y - BODY, palette: FX.PALS.arcane });
+        this.sound("blink", vp.x);
+        await c.tween(0.15, (u) => (vp.z = 6 * (1 - u)));
         break;
       case "smite":
         this.spawnFx(FX.smite, { x: tx, y: ty });
@@ -728,6 +834,14 @@ export class BoardView {
     if (vp.frozen) {
       g.globalAlpha = vp.alpha * 0.55;
       g.drawImage(tinted(sp, "white", "#9fe6ff"), ix, iy);
+    }
+    if (vp.poison > 0) {
+      g.globalAlpha = vp.alpha * (0.22 + 0.12 * Math.sin(vp.bob * 5));
+      g.drawImage(tinted(sp, "white", "#7dff4a"), ix, iy);
+    }
+    if (vp.shield > 0) {
+      g.globalAlpha = vp.alpha * (0.55 + 0.3 * Math.sin(vp.bob * 4));
+      g.drawImage(tinted(sp, "outline", "#ffe9a0"), ix, iy);
     }
     if (vp.flash > 0) {
       g.globalAlpha = vp.alpha * Math.min(1, vp.flash * 1.4);

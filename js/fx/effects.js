@@ -18,6 +18,9 @@ export const PALS = {
   steel: ["#2a3044", "#59657e", "#9aa8c0", "#dfe7f5", "#ffffff"],
   bone: ["#2a2233", "#6b5f7a", "#b9a9c9", "#efe6f7", "#ffffff"],
   hell: ["#2a0508", "#7a0f12", "#e0361c", "#ff9a3c", "#ffe9a0"],
+  poison: ["#142a0c", "#2f6a1c", "#6fcf3a", "#c8ff8a", "#f4ffe0"],
+  arcane: ["#1a0f3a", "#3f2a8a", "#7f6af0", "#c9b8ff", "#ffffff"],
+  stone: ["#2a2620", "#5a5248", "#9a9080", "#d8d0c0", "#ffffff"],
 };
 
 const ramp5 = (o) => fit(o.palette ?? PALS.gold, 5);
@@ -154,8 +157,10 @@ export const projectile = {
     const C = ramp5(o), R = new Rng(o.seed), T = o.time;
     const ps = new Particles({ rng: R, sparks: [C[4], C[3], C[2]] });
     const pos = (t) => {
-      const u = clamp(t / T), k = o.kind === "arrow" ? u : ease.inQuad(u) * 0.35 + u * 0.65;
-      const arc = o.kind === "arrow" ? Math.sin(u * Math.PI) * -Math.min(12, Math.hypot(o.dx, o.dy) * 0.12) : 0;
+      const lob = o.kind === "stone" || o.kind === "bomb" || o.kind === "cannon";
+      const u = clamp(t / T), k = o.kind === "arrow" || lob ? u : ease.inQuad(u) * 0.35 + u * 0.65;
+      const L = Math.hypot(o.dx, o.dy);
+      const arc = o.kind === "arrow" ? Math.sin(u * Math.PI) * -Math.min(12, L * 0.12) : lob ? Math.sin(u * Math.PI) * -Math.min(40, 10 + L * 0.35) : 0;
       return [o.dx * k, o.dy * k + arc];
     };
     let t = 0, acc = 0;
@@ -167,7 +172,12 @@ export const projectile = {
           while (acc > 0.012) {
             acc -= 0.012;
             const [x, y] = pos(t);
-            if (o.kind === "ember" || o.kind === "hell") ps.spawn(P.FIRE, x + R.range(-1, 1), y + R.range(-1, 1), R.range(-10, 10), R.range(-20, 0), R.range(0.15, 0.3), 0, R.range(1, 2));
+            if (o.kind === "poison") ps.spawn(P.VAPOUR, x, y, R.range(-6, 6), R.range(-10, 2), R.range(0.25, 0.45), C[R.int(1, 2)], R.range(1, 2));
+            else if (o.kind === "bomb") { if (R.chance(0.5)) ps.spawn(P.SPARK, x, y - 3, R.range(-30, 30), R.range(-60, -10), R.range(0.1, 0.25)); }
+            else if (o.kind === "cannon") ps.spawn(P.SMOKE, x, y, R.range(-5, 5), R.range(-8, 0), R.range(0.3, 0.5), 0, R.range(1, 1.6));
+            else if (o.kind === "stone") { if (R.chance(0.2)) ps.spawn(P.GRIT, x, y, 0, 0, 0.2, C[2]); }
+            else if (o.kind === "arcane") ps.spawn(P.STAR, x, y, R.range(-10, 10), R.range(-10, 10), R.range(0.2, 0.4), C[R.int(3, 4)]);
+            else if (o.kind === "ember" || o.kind === "hell") ps.spawn(P.FIRE, x + R.range(-1, 1), y + R.range(-1, 1), R.range(-10, 10), R.range(-20, 0), R.range(0.15, 0.3), 0, R.range(1, 2));
             else if (o.kind === "frost") ps.spawn(P.FLAKE, x, y, R.range(-15, 15), R.range(-15, 15), R.range(0.25, 0.5), C[R.int(2, 4)], 1);
             else if (o.kind === "shadow") ps.spawn(P.VAPOUR, x, y, R.range(-8, 8), R.range(-12, 4), R.range(0.25, 0.45), C[2], R.range(1.5, 2.5));
           }
@@ -179,7 +189,17 @@ export const projectile = {
         if (t < T) {
           const [x, y] = pos(t), [px, py] = pos(Math.max(0, t - 0.04));
           const a = Math.atan2(y - py, x - px), ca = Math.cos(a), sa = Math.sin(a);
-          if (o.kind === "arrow") {
+          if (o.kind === "stone" || o.kind === "cannon" || o.kind === "bomb") {
+            const r = o.kind === "cannon" ? 3 : o.kind === "bomb" ? 2.6 : 1.6;
+            const body = o.kind === "bomb" ? hex("#2a2233") : o.kind === "cannon" ? hex("#1c1a22") : C[2];
+            p.circle(x, y, r + 0.8, hex("#120c19"));
+            p.circle(x, y, r, (d, a) => (d > 0.5 && a < -1 ? C[3] : body));
+            if (o.kind === "bomb") {
+              p.line(x, y - r, x + 2, y - r - 3, hex("#c9a46a"));
+              p.dot(x + 2, y - r - 4, WHITE);
+              p.glow(x + 2, y - r - 4, 6, hex("#ffb347"), 0.7);
+            }
+          } else if (o.kind === "arrow") {
             p.line(x - ca * 9, y - sa * 9, x, y, hex("#9b6334"));
             p.line(x - ca * 9, y - sa * 9 - 1, x - ca * 7, y - sa * 7 - 1, WHITE);
             p.px(x + ca, y + sa, WHITE);
@@ -220,6 +240,8 @@ export const impact = {
     if (o.kind === "ice")
       for (let i = 0; i < 7; i++)
         bits.add({ kind: B.SHARD, x: 0, y: 0, vx: R.range(-110, 110), vy: R.range(-190, -50), s: R.range(2, 4), a: R.range(0, TAU), va: R.range(-20, 20), c: C[R.int(2, 4)], bounce: 0.3, life: R.range(0.5, 0.9) });
+    if (o.kind === "poison")
+      for (let i = 0; i < 10; i++) ps.spawn(P.VAPOUR, R.range(-4, 4), R.range(-4, 4), R.range(-20, 20), R.range(-26, -4), R.range(0.5, 0.9), C[R.int(1, 3)], R.range(2, 3.5));
     if (o.kind === "shadow" || o.kind === "storm")
       for (let i = 0; i < 8; i++) ps.spawn(P.VAPOUR, R.range(-4, 4), R.range(-4, 4), R.range(-25, 25), R.range(-30, -5), R.range(0.4, 0.8), C[2], R.range(2, 3.5));
     let t = 0;

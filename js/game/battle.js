@@ -26,7 +26,7 @@ export function makeUnit(state, key, team, x, y, extra = {}) {
   const u = {
     id: state.nextId++, key, team, x, y,
     hp: def.hp, maxHp: def.hp, atk: def.atk,
-    cd: 0, frozen: 0, moved: false, kills: 0, timer: 0,
+    cd: 0, frozen: 0, moved: false, kills: 0, timer: 0, shield: 0, poison: 0, reborn: false,
     summon: !!def.summon, ...extra,
   };
   state.units.push(u);
@@ -92,6 +92,11 @@ export function attackTargets(s, u) {
       const t = unitAt(s, u.x + dx, u.y + dy);
       if (foe(t)) out.push({ x: t.x, y: t.y, hits: [t.id], dir: [Math.sign(dx), Math.sign(dy)] });
     }
+  } else if (a.area) {
+    // 곡사: 체비셰프 거리 min~area 안의 적이면 사이에 뭐가 있어도 맞힘
+    for (const t of s.units)
+      if (foe(t) && cheb(u, t) <= a.area && cheb(u, t) >= (a.min ?? 1))
+        out.push({ x: t.x, y: t.y, hits: [t.id], dir: [Math.sign(t.x - u.x), Math.sign(t.y - u.y)] });
   } else if (a.slide) {
     const min = a.min ?? 1;
     for (const [dx, dy] of a.slide) {
@@ -122,6 +127,25 @@ export function abilityTargets(s, u) {
       for (let x = u.x - r; x <= u.x + r; x++) if (inBoard(x, y) && fn(x, y)) out.push({ x, y });
   };
   switch (ab.id) {
+    case "ward":
+      around(ab.range, (x, y) => {
+        const t = unitAt(s, x, y);
+        return t && t.team === u.team && (t.shield ?? 0) < 3;
+      });
+      break;
+    case "bats":
+      around(ab.range, (x, y) => {
+        const t = unitAt(s, x, y);
+        return t && t.team !== u.team;
+      });
+      break;
+    case "swap":
+      around(ab.range, (x, y) => {
+        const t = unitAt(s, x, y);
+        return t && t.id !== u.id;
+      });
+      break;
+    case "meteor":
     case "fireball":
       around(ab.range, (x, y) => {
         // 3×3 안에 적이 한 명이라도 있어야 의미가 있어요
@@ -181,18 +205,50 @@ function guarded(s, t) {
   return s.units.some((g) => g.hp > 0 && g.team === t.team && g.id !== t.id && PIECES[g.key].passive === "guard" && cheb(g, t) === 1);
 }
 
+/** 전쟁군주 옆이면 공격력 +1 */
+export function atkOf(s, u) {
+  const aura = s.units.some((w) => w.hp > 0 && w.team === u.team && w.id !== u.id && PIECES[w.key].passive === "aura" && cheb(w, u) === 1);
+  return u.atk + (aura ? 1 : 0);
+}
+
 function damage(s, ev, src, t, amount, extra = {}) {
   if (t.hp <= 0) return;
   let dmg = amount;
   const guard = guarded(s, t);
   if (guard) dmg = Math.max(1, dmg - 1);
+  const stone = PIECES[t.key].passive === "stoneskin";
+  if (stone) dmg = Math.max(1, dmg - 1);
+  let absorbed = 0;
+  if (t.shield > 0) {
+    absorbed = Math.min(t.shield, dmg);
+    t.shield -= absorbed;
+    dmg -= absorbed;
+  }
   t.hp = Math.max(0, t.hp - dmg);
-  ev.push({ t: "hit", id: t.id, from: src?.id, dmg, hp: t.hp, guard, ...extra });
-  if (t.hp <= 0) kill(s, ev, src, t);
+  ev.push({ t: "hit", id: t.id, from: src?.id, dmg, hp: t.hp, guard, stone, absorbed, shield: t.shield, ...extra });
+  // 흡혈
+  if (src && src.hp > 0 && src.team !== t.team && PIECES[src.key].passive === "lifesteal" && dmg + absorbed > 0 && !extra.counter && !extra.bats) heal(s, ev, src, 1);
+  if (t.hp <= 0) return kill(s, ev, src, t);
+  // 반격: 근접 거리에서 맞고 버티면 1 되돌려줌
+  if (PIECES[t.key].passive === "counter" && src && src.hp > 0 && src.team !== t.team && !extra.counter && cheb(src, t) === 1 && t.frozen === 0)
+    damage(s, ev, t, src, 1, { counter: true });
 }
 
 function kill(s, ev, src, t) {
+  // 환생: 출전마다 한 번 되살아남
+  if (PIECES[t.key].passive === "rebirth" && !t.reborn) {
+    t.reborn = true;
+    t.hp = Math.ceil(t.maxHp / 2);
+    t.poison = 0;
+    ev.push({ t: "revive", id: t.id, hp: t.hp });
+    return;
+  }
   ev.push({ t: "death", id: t.id, key: t.key, team: t.team, x: t.x, y: t.y });
+  // 유폭: 쓰러지면 주변 적에게 3
+  if (PIECES[t.key].passive === "explode") {
+    ev.push({ t: "explode", id: t.id, x: t.x, y: t.y });
+    for (const e of s.units.filter((e) => e.hp > 0 && e.team !== t.team && cheb(e, t) === 1)) damage(s, ev, t, e, 3, { blast: true });
+  }
   if (t.key === "king" && t.team === "ally") s.over = "lose";
   if (src && src.hp > 0) {
     src.kills++;
@@ -253,6 +309,13 @@ export function resolve(s, act) {
     u.y = act.y;
     u.moved = true;
     promoteIfNeeded(s, ev, u);
+    if (def.passive === "hitandrun") {
+      const t = alive(s, other(u.team)).filter((t) => cheb(t, u) === 1).sort((a, b) => a.hp - b.hp)[0];
+      if (t) {
+        ev.push({ t: "attack", id: u.id, fx: "jab", style: "melee", cell: { x: t.x, y: t.y }, dir: [Math.sign(t.x - u.x), Math.sign(t.y - u.y)], targets: [t.id], quick: true });
+        damage(s, ev, u, t, 1);
+      }
+    }
   } else if (act.kind === "attack") {
     const targets = act.hits.map((id) => byId(s, id)).filter((t) => t && t.hp > 0);
     const main = byId(s, act.hits[0]) && unitAt(s, act.x, act.y);
@@ -268,17 +331,26 @@ export function resolve(s, act) {
         last = next;
       }
       ev.push({ t: "chain", id: u.id, path: hit.map((h) => ({ id: h.id, x: h.x, y: h.y })) });
-      hit.forEach((t, j) => damage(s, ev, u, t, j === 0 ? u.atk : Math.max(1, u.atk - 1), { chain: j }));
+      const A = atkOf(s, u);
+      hit.forEach((t, j) => damage(s, ev, u, t, j === 0 ? A : Math.max(1, A - 1), { chain: j }));
     } else {
       for (const t of targets) {
-        let dmg = u.atk, crit = false;
+        let dmg = atkOf(s, u), crit = false;
         if (def.passive === "ambush" && t.hp === t.maxHp) (dmg *= 2), (crit = true);
         damage(s, ev, u, t, dmg, { crit });
         if (def.passive === "freeze" && t.hp > 0) {
           t.frozen = 1;
           ev.push({ t: "freeze", id: t.id });
         }
+        if (def.passive === "poison" && t.hp > 0) {
+          t.poison = 3;
+          ev.push({ t: "poisoned", id: t.id });
+        }
       }
+      // 포격: 맞은 칸 주변 적에게 1
+      if (def.passive === "splash")
+        for (const e of alive(s, other(u.team)).filter((e) => !targets.includes(e) && Math.abs(e.x - act.x) <= 1 && Math.abs(e.y - act.y) <= 1))
+          damage(s, ev, u, e, 1, { splash: true });
     }
     // 근접 기물은 대상이 쓰러지고 칸이 비면 전진
     if (def.style === "melee" && u.hp > 0 && !unitAt(s, act.x, act.y)) {
@@ -305,6 +377,30 @@ export function resolve(s, act) {
     } else if (ab.id === "haste") {
       s.extraTurn = true;
       ev.push({ t: "haste", id: u.id });
+    } else if (ab.id === "meteor") {
+      for (const t of alive(s, other(u.team)))
+        if (Math.abs(t.x - act.x) <= 1 && Math.abs(t.y - act.y) <= 1) damage(s, ev, u, t, 3);
+    } else if (ab.id === "ward") {
+      const t = unitAt(s, act.x, act.y);
+      if (t) {
+        t.shield = 3;
+        ev.push({ t: "shield", id: t.id, shield: 3 });
+      }
+    } else if (ab.id === "bats") {
+      const t = unitAt(s, act.x, act.y);
+      if (t) {
+        damage(s, ev, u, t, 2, { bats: true });
+        if (u.hp > 0) heal(s, ev, u, 2);
+      }
+    } else if (ab.id === "swap") {
+      const t = unitAt(s, act.x, act.y);
+      if (t) {
+        const a = { x: u.x, y: u.y }, b = { x: t.x, y: t.y };
+        ev.push({ t: "swap", a: u.id, b: t.id, pa: a, pb: b });
+        (u.x = b.x), (u.y = b.y), (t.x = a.x), (t.y = a.y);
+        promoteIfNeeded(s, ev, u);
+        promoteIfNeeded(s, ev, t);
+      }
     } else if (ab.id === "smite") {
       const t = unitAt(s, act.x, act.y);
       if (t) damage(s, ev, u, t, 5);
@@ -331,7 +427,14 @@ export function endTurn(s) {
   }
   s.turn = other(team);
   if (s.turn === "ally") s.turnNo++;
-  // 다음 턴 쪽의 시작 효과
+  // 다음 턴 쪽의 시작 효과: 독
+  for (const u of alive(s, s.turn))
+    if (u.poison > 0) {
+      u.poison--;
+      damage(s, ev, null, u, 1, { poison: true });
+    }
+  s.units = s.units.filter((x) => x.hp > 0);
+  if (!alive(s, "enemy").length && !s.over) s.over = "win";
   for (const u of alive(s, s.turn)) {
     if (PIECES[u.key].passive === "spawner") {
       u.timer++;

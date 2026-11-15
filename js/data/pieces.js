@@ -141,6 +141,98 @@ export const PIECES = {
     desc: "빛의 망치로 내려치고 곁의 아군을 돌봐요.",
   },
 
+  // ── 추가 기물: 일반 ─────────────────────────────────────────
+  slinger: {
+    name: "투석병", rarity: "common", price: 45, hp: 3, atk: 1,
+    move: { slide: ALL, range: 1 }, attack: { area: 3, min: 2 }, style: "ranged", fx: "sling",
+    desc: "곡사: 2~3칸 안의 적이면 사이에 누가 막고 있어도 돌을 던져 맞혀요.",
+  },
+  scout: {
+    name: "척후병", rarity: "common", price: 55, hp: 4, atk: 1,
+    move: { slide: ALL, range: 3 }, attack: { slide: ALL, range: 1 }, style: "melee", fx: "jab",
+    passive: "hitandrun",
+    desc: "기습: 이동을 마치면 옆에 붙은 적 하나를 자동으로 1 때려요. 세 칸까지 달려요.",
+  },
+  monk: {
+    name: "수도승", rarity: "common", price: 85, hp: 7, atk: 2,
+    move: { slide: ALL, range: 1 }, attack: { slide: ALL, range: 1 }, style: "melee", fx: "palm",
+    passive: "counter",
+    desc: "반격: 근접 공격을 받고 버티면 그 자리에서 1 맞받아쳐요.",
+  },
+
+  // ── 추가 기물: 희귀 ─────────────────────────────────────────
+  venomist: {
+    name: "독술사", rarity: "rare", price: 135, hp: 4, atk: 1,
+    move: { slide: ALL, range: 1 }, attack: { slide: ALL, range: 3 }, style: "ranged", fx: "venom",
+    passive: "poison",
+    desc: "중독: 맞은 적은 3턴 동안 자기 차례가 올 때마다 독으로 1씩 잃어요.",
+  },
+  cannoneer: {
+    name: "대포병", rarity: "rare", price: 190, hp: 5, atk: 3,
+    move: { slide: ORTHO, range: 1 }, attack: { slide: ORTHO, range: 5, min: 2 }, style: "ranged", fx: "cannon",
+    passive: "splash",
+    desc: "포격: 가로세로 2~5칸을 쏘고, 맞은 적 주변의 적에게도 1 피해를 줘요. 바로 옆은 못 쏴요.",
+  },
+  spellblade: {
+    name: "마검사", rarity: "rare", price: 175, hp: 5, atk: 2,
+    move: { slide: DIAG, range: 2 }, attack: { slide: ALL, range: 1 }, style: "melee", fx: "voidcut",
+    passive: "lifesteal",
+    desc: "흡혈 검: 적을 벨 때마다 체력을 1 회복해요. 대각선으로 두 칸까지 움직여요.",
+  },
+  templar: {
+    name: "수호기사", rarity: "rare", price: 180, hp: 8, atk: 2,
+    move: { slide: ORTHO, range: 2 }, attack: { slide: ALL, range: 1 }, style: "melee", fx: "bash",
+    ability: { id: "ward", name: "가호", cd: 3, range: 2, desc: "2칸 이내 아군(자신 포함)에게 피해 3을 막는 보호막." },
+    desc: "빛의 보호막으로 가장 위험한 아군을 감싸요.",
+  },
+  bomber: {
+    name: "폭탄병", rarity: "rare", price: 120, hp: 3, atk: 1,
+    move: { slide: ALL, range: 1 }, attack: { area: 2 }, style: "ranged", fx: "bomb",
+    passive: "explode",
+    desc: "유폭: 쓰러지면 터지면서 주변 적에게 3 피해를 줘요. 2칸 안으로 폭죽을 던져요.",
+  },
+
+  // ── 추가 기물: 영웅 ─────────────────────────────────────────
+  golem: {
+    name: "골렘", rarity: "epic", price: 290, hp: 16, atk: 3,
+    move: { slide: ORTHO, range: 1 }, attack: { slide: ALL, range: 1 }, style: "melee", fx: "crush",
+    passive: "stoneskin",
+    desc: "돌 피부: 받는 모든 피해가 1 줄어요. 느리지만 무너지지 않아요.",
+  },
+  vampire: {
+    name: "흡혈귀", rarity: "epic", price: 340, hp: 7, atk: 3,
+    move: { leap: KNIGHT }, attack: { leap: KNIGHT }, style: "melee", fx: "fang",
+    passive: "lifesteal",
+    ability: { id: "bats", name: "박쥐 떼", cd: 2, range: 3, desc: "3칸 이내 적에게 2 피해, 그만큼 체력 회복." },
+    desc: "나이트처럼 뛰어들어 물고, 박쥐 떼로 멀리서도 피를 빨아요.",
+  },
+  illusionist: {
+    name: "환영술사", rarity: "epic", price: 310, hp: 5, atk: 2,
+    move: { slide: ALL, range: 1 }, attack: { slide: ALL, range: 2 }, style: "ranged", fx: "mirage",
+    ability: { id: "swap", name: "자리 바꾸기", cd: 3, range: 3, desc: "3칸 이내 기물 하나(적이든 아군이든)와 자리를 맞바꿔요." },
+    desc: "판을 뒤섞는 술사. 위험한 적을 끌어오거나 다친 아군을 빼내요.",
+  },
+  warlord: {
+    name: "전쟁군주", rarity: "epic", price: 360, hp: 10, atk: 3,
+    move: { slide: ALL, range: 1 }, attack: { slide: ALL, range: 1 }, style: "melee", fx: "warcleave",
+    passive: "aura",
+    desc: "지휘: 바로 옆에 붙어 있는 아군의 공격력이 1 올라가요.",
+  },
+
+  // ── 추가 기물: 전설 ─────────────────────────────────────────
+  archmage: {
+    name: "대마법사", rarity: "legend", price: 760, hp: 6, atk: 2,
+    move: { slide: ALL, range: 1 }, attack: { slide: ALL, range: 4 }, style: "ranged", fx: "arcane",
+    ability: { id: "meteor", name: "운석", cd: 5, range: 8, desc: "판 어디든 3×3 범위의 적에게 3 피해." },
+    desc: "하늘의 별을 끌어내리는 마법사. 판 끝의 적도 안전하지 않아요.",
+  },
+  phoenix: {
+    name: "불사조", rarity: "legend", price: 820, hp: 8, atk: 3,
+    move: { slide: ALL, range: 3 }, attack: { slide: ALL, range: 2 }, style: "ranged", fx: "flame",
+    passive: "rebirth",
+    desc: "환생: 출전마다 한 번, 쓰러져도 체력 절반으로 불꽃 속에서 되살아나요.",
+  },
+
   // ── 소환/적 전용 ───────────────────────────────────────────
   skeleton: {
     name: "해골 병사", rarity: "common", price: 0, hp: 3, atk: 1, noShop: true, summon: true,
@@ -188,6 +280,20 @@ export const LORE = {
   dragon: "판 밖의 하늘에서 내려온 전설. 숨 한 번에 한 줄이 타올라요.",
   chrono: "모래시계를 거꾸로 세우는 술사. 남들보다 한 박자 먼저 움직여요.",
   paladin: "빛의 망치를 든 성기사. 내려칠 때마다 곁의 동료가 숨을 돌려요.",
+  slinger: "돌멩이 하나로 성벽 너머를 노리는 병사. 앞에 누가 있든 상관없어요.",
+  scout: "누구보다 먼저 달려가는 척후병. 도착하자마자 주먹부터 나가요.",
+  monk: "맞으면 맞은 만큼 돌려주는 수도승. 마음은 고요하지만 손은 빨라요.",
+  venomist: "초록 병을 늘 품고 다니는 술사. 한 방울이면 충분해요.",
+  cannoneer: "포탄 냄새를 좋아하는 포병. 멀리 있을수록 더 신나요.",
+  spellblade: "보랏빛 검으로 생명을 베어 마시는 검사.",
+  templar: "동료 앞에 빛의 막을 펼치는 기사. 자기 상처는 나중이에요.",
+  bomber: "도화선에 불을 붙이고 웃는 폭탄병. 쓰러질 때가 가장 위험해요.",
+  golem: "고대의 돌로 빚은 거인. 망치도 칼도 반쯤만 들어가요.",
+  vampire: "밤에만 판에 오르는 귀족. 상처는 남의 피로 메워요.",
+  illusionist: "거울 속에서 걸어 나온 술사. 눈 깜짝할 새 자리가 바뀌어 있어요.",
+  warlord: "전장의 북소리 같은 군주. 곁에 선 병사들이 덩달아 사나워져요.",
+  archmage: "별자리를 외우는 대신 별을 떨어뜨리는 대마법사.",
+  phoenix: "재 속에서 다시 날아오르는 불새. 한 번 쓰러뜨렸다고 끝이 아니에요.",
   skeleton: "네크로맨서의 부름에 일어난 해골. 보라빛 눈으로 주인을 따라요.",
   imp: "마왕의 망토 자락에서 튀어나오는 졸개. 작지만 성가셔요.",
   demon: "혼돈의 판을 지배하려는 마왕. 다섯 번째 웨이브마다 모습을 드러내요.",

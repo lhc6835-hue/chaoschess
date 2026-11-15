@@ -107,6 +107,7 @@ async function startWave() {
     u.maxHp = r.maxHp;
     u.atk = r.atk;
     u.kills = r.kills;
+    u.reborn = !!r.reborn;
   }
   const spec = makeWave(run.wave, run.seed);
   const enemies = spec.map((s) => {
@@ -212,7 +213,10 @@ async function afterAction() {
     await view.play(evs);
     view.sync(battle);
     markSeen(evs.filter((e) => e.t === "spawn").map((e) => e.unit.key));
+    payKills(evs);
     refreshPanels();
+    if (battle.over === "lose") return finishRun("lose");
+    if (battle.over === "win") return waveClear();
   }
   if (battle.turn === "enemy") enemyTurn();
   else playerTurn();
@@ -266,7 +270,7 @@ async function waveClear() {
     let slot = prev ? prev.slot : null;
     if (slot == null || used.has(slot)) slot = null;
     const heal = Math.ceil(u.maxHp * 0.2);
-    next.push({ id: u.id, key: u.key, slot, hp: Math.min(u.maxHp, u.hp + heal), maxHp: u.maxHp, atk: u.atk, summon: u.summon, kills: u.kills });
+    next.push({ id: u.id, key: u.key, slot, hp: Math.min(u.maxHp, u.hp + heal), maxHp: u.maxHp, atk: u.atk, summon: u.summon, kills: u.kills, reborn: u.reborn });
     if (slot != null) used.add(slot);
   }
   // 소환수 등 자리가 없는 기물은 빈 칸에 (앞줄 우선)
@@ -292,7 +296,7 @@ async function waveClear() {
       vp.hp = r.hp;
       if (gained > 0) view.float("+" + gained, vp.x, vp.y - 24, "#9dff7a");
       const u = byId(battle, r.id);
-      if (u) Object.assign(u, { x: c.x, y: c.y, hp: r.hp, frozen: 0, cd: 0 });
+      if (u) Object.assign(u, { x: c.x, y: c.y, hp: r.hp, frozen: 0, cd: 0, poison: 0, shield: 0 });
       vp.frozen = false;
       vp.cd = 0;
     }),
@@ -452,6 +456,9 @@ function refreshCard() {
   const team = u.team === "ally" && u.summon ? "summon" : u.team;
   const status = [];
   if (u.frozen) status.push("빙결");
+  if (u.poison) status.push(`중독 ${u.poison}턴`);
+  if (u.shield) status.push(`보호막 ${u.shield}`);
+  if (def.passive === "rebirth") status.push(u.reborn ? "환생 사용함" : "환생 준비");
   if (def.ability && u.cd > 0) status.push(`${def.ability.name} ${u.cd - (battle.turn === u.team ? 0 : 1)}턴 뒤`);
   if (u.atk > def.atk && u.team === "ally") status.push(`공격 +${u.atk - def.atk}`);
   el.replaceChildren(

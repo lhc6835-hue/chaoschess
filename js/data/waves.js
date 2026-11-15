@@ -10,6 +10,20 @@ const POOL = [
   { key: "archer", from: 2, w: 4 },
   { key: "shield", from: 3, w: 3 },
   { key: "imp", from: 3, w: 3 },
+  { key: "slinger", from: 2, w: 3 },
+  { key: "scout", from: 3, w: 3 },
+  { key: "monk", from: 4, w: 2 },
+  { key: "bomber", from: 5, w: 2 },
+  { key: "venomist", from: 6, w: 2 },
+  { key: "spellblade", from: 6, w: 2 },
+  { key: "cannoneer", from: 7, w: 1 },
+  { key: "templar", from: 8, w: 1 },
+  { key: "golem", from: 9, w: 1 },
+  { key: "warlord", from: 10, w: 1 },
+  { key: "vampire", from: 11, w: 1 },
+  { key: "illusionist", from: 12, w: 1 },
+  { key: "archmage", from: 14, w: 1 },
+  { key: "phoenix", from: 15, w: 1 },
   { key: "queen", from: 4, w: 2 },
   { key: "frost", from: 4, w: 2 },
   { key: "pyro", from: 4, w: 2 },
@@ -63,7 +77,7 @@ export function makeWave(w, seed) {
     budget -= PIECES[choice.key].price;
   }
   // 배치: 폰·창병·방패병은 앞줄, 나머지는 뒷줄부터
-  const front = ["pawn", "spearman", "shield", "imp"];
+  const front = ["pawn", "spearman", "shield", "imp", "scout", "monk", "golem", "templar", "warlord"];
   const cols = [3, 4, 2, 5, 1, 6, 0, 7];
   const rows = { 0: [], 1: [] };
   const sorted = [...picks].sort((a, b) => PIECES[b].price - PIECES[a].price);
