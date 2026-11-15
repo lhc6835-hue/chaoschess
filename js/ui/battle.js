@@ -101,7 +101,7 @@ export function bindBattle(go) {
   defeatHome = () => go("home", "defeat");
   $("#btn-retreat").addEventListener("click", async () => {
     if (phase === "over") return;
-    const ok = await modal([h("h3", {}, "귀환할까요?"), h("p", {}, "지금까지 번 골드는 그대로 남아요. 이번 출전은 여기서 끝나요.")], [
+    const ok = await modal([h("h3", {}, "귀환하시겠습니까?"), h("p", {}, "지금까지 번 골드는 그대로 남습니다. 이번 출전은 여기서 끝납니다.")], [
       { label: "귀환", value: true, cls: "btn-main" },
       { label: "계속 싸우기", value: false },
     ]);
@@ -110,7 +110,7 @@ export function bindBattle(go) {
   $("#btn-pass").addEventListener("click", () => {
     if (phase !== "player") return;
     closeMenu();
-    log("ally", "턴을 넘겼어요.");
+    log("ally", "턴을 넘겼습니다.");
     afterAction();
   });
   $("#btn-next-wave").addEventListener("click", () => {
@@ -204,13 +204,13 @@ async function startWave() {
   // 아군은 그대로, 적은 위에서 떨어지며 등장
   view.sync({ units: battle.units.filter((u) => u.team === "ally") }, { snap: true });
   $("#wave-tag").textContent = `웨이브 ${run.wave}`;
-  setTurnTag("enemy", "적이 나타나요");
+  setTurnTag("enemy", "적이 나타납니다");
   await idle();
   const bossWave = run.wave % 5 === 0;
   music(bossWave ? "boss" : "battle");
   setBackdrop(bossWave ? "boss" : "battle");
   jingle(bossWave ? "boss" : "waveStart");
-  await banner(`웨이브 ${run.wave}`, run.wave % 5 === 0 ? "마왕이 온다!" : `적 ${enemies.length}기`);
+  await banner(`웨이브 ${run.wave}`, run.wave % 5 === 0 ? "마왕이 옵니다!" : `적 ${enemies.length}기`);
   enemies.sort((a, b) => a.y - b.y || Math.abs(a.x - 3.5) - Math.abs(b.x - 3.5));
   await Promise.all(enemies.map((u, i) => dropIn(u, i * 0.06)));
   log("sys", `웨이브 ${run.wave} 시작. 적 ${enemies.length}기.`);
@@ -244,8 +244,8 @@ function setTurnTag(team, text) {
 function playerTurn() {
   if (battle.over) return;
   if (!hasAnyAction(battle, "ally")) {
-    toast("움직일 수 있는 기물이 없어 턴을 넘겨요.");
-    log("ally", "움직일 수 있는 기물이 없어요.");
+    toast("움직일 수 있는 기물이 없어 턴을 넘깁니다.");
+    log("ally", "움직일 수 있는 기물이 없습니다.");
     return afterAction();
   }
   phase = "player";
@@ -274,7 +274,7 @@ async function enemyTurn() {
       return;
     }
   }
-  log("enemy", "적이 숨을 고르고 있어요.");
+  log("enemy", "적이 숨을 고르고 있습니다.");
   afterAction();
 }
 
@@ -399,7 +399,7 @@ function enterArrange() {
   view.selected = null;
   view.zone = { y0: 6, y1: 7 };
   view.marks = { move: [], attack: [], ability: [], swap: [] };
-  setTurnTag("ally", "재배치: 아래 두 줄 안에서 자리를 바꿀 수 있어요");
+  setTurnTag("ally", "재배치: 아래 두 줄 안에서 자리를 바꿀 수 있습니다");
   $("#btn-next-wave").hidden = false;
   $("#btn-pass").disabled = true;
   $("#btn-next-wave").focus();
@@ -478,7 +478,7 @@ function select(u) {
   showCard(u);
   if (!canAct(u)) {
     view.marks = { move: [], attack: [], ability: [], swap: [] };
-    toast("얼어붙어서 이번 턴엔 움직일 수 없어요.");
+    toast("얼어붙어서 이번 턴에는 움직일 수 없습니다.");
     return;
   }
   view.marks = { move: moveTargets(battle, u), attack: attackTargets(battle, u), ability: abilityTargets(battle, u), swap: [] };
@@ -542,7 +542,7 @@ function refreshCard() {
   const el = $("#unit-card");
   const u = cardUnit != null && battle ? byId(battle, cardUnit) : null;
   if (!u) {
-    el.replaceChildren(h("p", { class: "muted" }, "기물을 누르면 정보가 나와요."));
+    el.replaceChildren(h("p", { class: "muted" }, "기물을 누르면 정보가 나옵니다."));
     return;
   }
   const def = PIECES[u.key];
@@ -616,15 +616,15 @@ async function finishRun(reason) {
     music(null);
     await view.clock.wait(0.6);
     jingle("gameOver");
-    await banner("킹이 쓰러졌어요", "");
+    await banner("킹이 쓰러졌습니다", "");
   }
   await modal(
     [
-      h("h3", {}, reason === "retreat" ? "귀환했어요" : "출전 종료"),
+      h("h3", {}, reason === "retreat" ? "귀환했습니다" : "출전 종료"),
       h("p", {}, `클리어한 웨이브: ${cleared}`),
       h("p", {}, `쓰러뜨린 적: ${run.kills}기`),
       h("p", {}, `번 골드: ${run.gold}G`),
-      h("p", { class: "muted" }, "번 골드로 상점에서 새 기물을 데려올 수 있어요."),
+      h("p", { class: "muted" }, "번 골드로 상점에서 새 기물을 데려올 수 있습니다."),
     ],
     [{ label: "메인으로", value: true, cls: "btn-main" }],
   );
@@ -658,7 +658,7 @@ function refreshPanels() {
   };
   const allies = list("ally"), enemies = list("enemy");
   $("#ally-list").replaceChildren(...allies);
-  $("#enemy-list").replaceChildren(...(enemies.length ? enemies : [h("li", { class: "gone" }, h("span", {}, "남은 적이 없어요"))]));
+  $("#enemy-list").replaceChildren(...(enemies.length ? enemies : [h("li", { class: "gone" }, h("span", {}, "남은 적이 없습니다"))]));
   $("#ally-count").textContent = `${allies.length}기`;
   $("#enemy-count").textContent = `${enemies.length}기`;
   // 진행 막대: 다섯 웨이브 묶음, 다섯 번째가 마왕

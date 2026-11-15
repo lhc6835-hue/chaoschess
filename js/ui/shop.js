@@ -29,8 +29,8 @@ function card(key, d) {
   const btn = h("button", { class: "btn btn-small " + (afford ? "btn-main" : ""), disabled: !afford, "data-sfx": "buy" }, "구매");
   btn.addEventListener("click", () => {
     const u = buy(key);
-    if (!u) return toast("골드가 부족해요.");
-    toast(`${def.name}을(를) 데려왔어요.`);
+    if (!u) return toast("골드가 부족합니다.");
+    toast(`${def.name}을(를) 데려왔습니다.`);
     renderShop();
   });
   return h("article", { class: "card" },

@@ -38,7 +38,7 @@ export function renderFormation() {
       ? waiting.map((u) =>
           h("button", { class: "roster-item " + (picked?.uid === u.uid ? "sel" : ""), onclick: () => pickRoster(u.uid) }, spriteCanvas(u.key, "ally", 2), h("span", {}, PIECES[u.key].name)),
         )
-      : [h("p", { class: "empty" }, "모든 기물이 배치되어 있어요. 상점에서 더 데려올 수 있어요.")]),
+      : [h("p", { class: "empty" }, "모든 기물이 배치되어 있습니다. 상점에서 더 데려올 수 있습니다.")]),
   );
 
   $("#form-count").textContent = `배치 ${placed.size} / ${SLOT_COUNT}`;
@@ -72,8 +72,8 @@ export function renderFormation() {
     );
   } else
     detail.replaceChildren(
-      h("b", {}, "기물을 골라 보세요"),
-      h("p", { class: "muted" }, "위 대기 목록이나 편성 칸의 기물을 누르면 체력, 공격력, 능력이 여기에 나와요. 고른 상태에서 다른 칸을 누르면 자리가 바뀌어요."),
+      h("b", {}, "기물을 골라 보십시오"),
+      h("p", { class: "muted" }, "위 대기 목록이나 편성 칸의 기물을 누르면 체력, 공격력, 능력이 여기에 나옵니다. 고른 상태에서 다른 칸을 누르면 자리가 바뀝니다."),
     );
 }
 
@@ -119,7 +119,7 @@ export function bindFormation() {
     const u = d.owned.find((o) => o.uid === picked.uid);
     const got = sell(picked.uid);
     if (got) {
-      toast(`${PIECES[u.key].name}을(를) 팔고 ${got}G를 받았어요.`);
+      toast(`${PIECES[u.key].name}을(를) 팔고 ${got}G를 받았습니다.`);
       sfx("coin");
     }
     picked = null;
@@ -129,7 +129,7 @@ export function bindFormation() {
     autoFormation();
     picked = null;
     renderFormation();
-    toast("강한 기물부터 자동으로 배치했어요.");
+    toast("강한 기물부터 자동으로 배치했습니다.");
   });
 }
 

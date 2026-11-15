@@ -43,7 +43,7 @@ async function navigate(name, style = "board") {
   show(name);
   if (name === "battle" && !startRun()) {
     show("formation");
-    toast("편성에 킹을 넣어야 출전할 수 있어요.");
+    toast("편성에 킹을 넣어야 출전할 수 있습니다.");
   }
   await reveal();
 }
@@ -55,7 +55,7 @@ function hasKing() {
 
 function renderHome() {
   const d = load();
-  $("#home-hint").textContent = hasKing() ? "" : "편성에 킹이 있어야 출전할 수 있어요.";
+  $("#home-hint").textContent = hasKing() ? "" : "편성에 킹이 있어야 출전할 수 있습니다.";
   renderHomeSide();
 
   // 메인 화면 보드: 내 편성 + 첫 웨이브 적이 서로 마주보며 들썩여요
@@ -149,7 +149,7 @@ function init() {
       if (to === "battle") {
         if (!hasKing()) {
           sfx("error");
-          toast("편성에 킹을 넣어야 출전할 수 있어요.");
+          toast("편성에 킹을 넣어야 출전할 수 있습니다.");
           return;
         }
         navigate("battle", "battle");
