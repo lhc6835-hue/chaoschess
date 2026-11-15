@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Chaos Chess</title>
-  <link rel="stylesheet" href="css/style.css?v=20261115150417">
+  <link rel="stylesheet" href="css/style.css?v=20261115151959">
 </head>
 <body>
   <div id="app">
@@ -170,6 +170,7 @@
       <div class="action-menu" id="action-menu" hidden></div>
     </section>
 
+    <button class="fs-btn" id="fs-btn" aria-label="전체화면" data-sfx="click"><i></i><i></i><i></i><i></i></button>
     <button class="sound-btn" id="sound-btn" aria-label="소리 설정" data-sfx="none"><i></i><i></i><i></i></button>
     <div class="sound-panel" id="sound-panel" hidden>
       <label>배경음악 <input type="range" id="vol-music" min="0" max="100"></label>
@@ -182,42 +183,43 @@
   <script type="importmap" id="versions">
 {
   "imports": {
-    "./js/audio.js": "./js/audio.js?v=20261115150417",
-    "./js/data/pieces.js": "./js/data/pieces.js?v=20261115150417",
-    "./js/data/waves.js": "./js/data/waves.js?v=20261115150417",
-    "./js/fx/effects.js": "./js/fx/effects.js?v=20261115150417",
-    "./js/game/ai.js": "./js/game/ai.js?v=20261115150417",
-    "./js/game/battle.js": "./js/game/battle.js?v=20261115150417",
-    "./js/main.js": "./js/main.js?v=20261115150417",
-    "./js/render/anim.js": "./js/render/anim.js?v=20261115150417",
-    "./js/render/backdrop.js": "./js/render/backdrop.js?v=20261115150417",
-    "./js/render/board-view.js": "./js/render/board-view.js?v=20261115150417",
-    "./js/render/sprites.js": "./js/render/sprites.js?v=20261115150417",
-    "./js/save.js": "./js/save.js?v=20261115150417",
-    "./js/ui/battle.js": "./js/ui/battle.js?v=20261115150417",
-    "./js/ui/common.js": "./js/ui/common.js?v=20261115150417",
-    "./js/ui/formation.js": "./js/ui/formation.js?v=20261115150417",
-    "./js/ui/pages.js": "./js/ui/pages.js?v=20261115150417",
-    "./js/ui/shop.js": "./js/ui/shop.js?v=20261115150417",
-    "./js/ui/transition.js": "./js/ui/transition.js?v=20261115150417",
-    "./lib/pixelfx/core/act.js": "./lib/pixelfx/core/act.js?v=20261115150417",
-    "./lib/pixelfx/core/actor.js": "./lib/pixelfx/core/actor.js?v=20261115150417",
-    "./lib/pixelfx/core/chain.js": "./lib/pixelfx/core/chain.js?v=20261115150417",
-    "./lib/pixelfx/core/color.js": "./lib/pixelfx/core/color.js?v=20261115150417",
-    "./lib/pixelfx/core/font.js": "./lib/pixelfx/core/font.js?v=20261115150417",
-    "./lib/pixelfx/core/fx.js": "./lib/pixelfx/core/fx.js?v=20261115150417",
-    "./lib/pixelfx/core/index.js": "./lib/pixelfx/core/index.js?v=20261115150417",
-    "./lib/pixelfx/core/math.js": "./lib/pixelfx/core/math.js?v=20261115150417",
-    "./lib/pixelfx/core/painter.js": "./lib/pixelfx/core/painter.js?v=20261115150417",
-    "./lib/pixelfx/core/particles.js": "./lib/pixelfx/core/particles.js?v=20261115150417",
-    "./lib/pixelfx/core/poses.js": "./lib/pixelfx/core/poses.js?v=20261115150417",
-    "./lib/pixelfx/core/rig.js": "./lib/pixelfx/core/rig.js?v=20261115150417",
-    "./lib/pixelfx/core/scene.js": "./lib/pixelfx/core/scene.js?v=20261115150417",
-    "./lib/pixelfx/core/shapes.js": "./lib/pixelfx/core/shapes.js?v=20261115150417",
-    "./lib/pixelfx/core/sim.js": "./lib/pixelfx/core/sim.js?v=20261115150417"
+    "./js/audio.js": "./js/audio.js?v=20261115151959",
+    "./js/data/pieces.js": "./js/data/pieces.js?v=20261115151959",
+    "./js/data/waves.js": "./js/data/waves.js?v=20261115151959",
+    "./js/fullscreen.js": "./js/fullscreen.js?v=20261115151959",
+    "./js/fx/effects.js": "./js/fx/effects.js?v=20261115151959",
+    "./js/game/ai.js": "./js/game/ai.js?v=20261115151959",
+    "./js/game/battle.js": "./js/game/battle.js?v=20261115151959",
+    "./js/main.js": "./js/main.js?v=20261115151959",
+    "./js/render/anim.js": "./js/render/anim.js?v=20261115151959",
+    "./js/render/backdrop.js": "./js/render/backdrop.js?v=20261115151959",
+    "./js/render/board-view.js": "./js/render/board-view.js?v=20261115151959",
+    "./js/render/sprites.js": "./js/render/sprites.js?v=20261115151959",
+    "./js/save.js": "./js/save.js?v=20261115151959",
+    "./js/ui/battle.js": "./js/ui/battle.js?v=20261115151959",
+    "./js/ui/common.js": "./js/ui/common.js?v=20261115151959",
+    "./js/ui/formation.js": "./js/ui/formation.js?v=20261115151959",
+    "./js/ui/pages.js": "./js/ui/pages.js?v=20261115151959",
+    "./js/ui/shop.js": "./js/ui/shop.js?v=20261115151959",
+    "./js/ui/transition.js": "./js/ui/transition.js?v=20261115151959",
+    "./lib/pixelfx/core/act.js": "./lib/pixelfx/core/act.js?v=20261115151959",
+    "./lib/pixelfx/core/actor.js": "./lib/pixelfx/core/actor.js?v=20261115151959",
+    "./lib/pixelfx/core/chain.js": "./lib/pixelfx/core/chain.js?v=20261115151959",
+    "./lib/pixelfx/core/color.js": "./lib/pixelfx/core/color.js?v=20261115151959",
+    "./lib/pixelfx/core/font.js": "./lib/pixelfx/core/font.js?v=20261115151959",
+    "./lib/pixelfx/core/fx.js": "./lib/pixelfx/core/fx.js?v=20261115151959",
+    "./lib/pixelfx/core/index.js": "./lib/pixelfx/core/index.js?v=20261115151959",
+    "./lib/pixelfx/core/math.js": "./lib/pixelfx/core/math.js?v=20261115151959",
+    "./lib/pixelfx/core/painter.js": "./lib/pixelfx/core/painter.js?v=20261115151959",
+    "./lib/pixelfx/core/particles.js": "./lib/pixelfx/core/particles.js?v=20261115151959",
+    "./lib/pixelfx/core/poses.js": "./lib/pixelfx/core/poses.js?v=20261115151959",
+    "./lib/pixelfx/core/rig.js": "./lib/pixelfx/core/rig.js?v=20261115151959",
+    "./lib/pixelfx/core/scene.js": "./lib/pixelfx/core/scene.js?v=20261115151959",
+    "./lib/pixelfx/core/shapes.js": "./lib/pixelfx/core/shapes.js?v=20261115151959",
+    "./lib/pixelfx/core/sim.js": "./lib/pixelfx/core/sim.js?v=20261115151959"
   }
 }
 </script>
-  <script type="module" src="js/main.js?v=20261115150417"></script>
+  <script type="module" src="js/main.js?v=20261115151959"></script>
 </body>
 </html>

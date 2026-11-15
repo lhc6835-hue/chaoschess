@@ -11,6 +11,7 @@ import { bindBattle, startRun, battleView } from "./ui/battle.js";
 import { cover, reveal, isBusy } from "./ui/transition.js";
 import { unlock, music, sfx, getPrefs, setPrefs } from "./audio.js";
 import { initBackdrop, setBackdrop } from "./render/backdrop.js";
+import { bindFullscreen } from "./fullscreen.js";
 import { renderHomeSide, bindHomeSide, renderCodex, renderRecords, renderHelp } from "./ui/pages.js";
 
 const THEME = { home: "home", shop: "shop", formation: "home", codex: "codex", records: "codex", help: "codex", battle: "battle" };
@@ -125,7 +126,7 @@ function bindUiSounds() {
   window.addEventListener("pointerdown", first, { capture: true });
   window.addEventListener("keydown", first, { capture: true });
   // 버튼류 공통 클릭/호버 소리
-  const sel = ".btn, .slot, .roster-item, .filters button, #sound-btn";
+  const sel = ".btn, .slot, .roster-item, .filters button, #sound-btn, #fs-btn";
   document.addEventListener("click", (e) => {
     const el = e.target.closest(sel);
     if (!el || el.disabled || el.dataset.sfx === "none") return;
@@ -158,6 +159,7 @@ function init() {
     });
   bindFormation();
   bindBattle(navigate);
+  bindFullscreen($("#fs-btn"));
   bindSound();
   bindUiSounds();
   document.fonts?.ready.then(() => homeView?.resize());

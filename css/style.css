@@ -362,6 +362,19 @@ button { font: inherit; color: inherit; }
   transition: transform .2s var(--spring);
 }
 .sound-btn:hover { transform: scale(1.08); }
+/* 전체화면 버튼: 네 모서리 꺾쇠, 켜지면 안쪽을 향해 */
+.fs-btn {
+  position: fixed; left: 66px; bottom: 16px; z-index: 30; width: 40px; height: 40px; border: 0; cursor: pointer; background: var(--bg-deep);
+  box-shadow: 0 -3px 0 0 var(--edge), 0 3px 0 0 var(--edge), -3px 0 0 0 var(--edge), 3px 0 0 0 var(--edge);
+  transition: transform .2s var(--spring);
+}
+.fs-btn:hover { transform: scale(1.08); }
+.fs-btn i { position: absolute; width: 9px; height: 9px; border: 0 solid var(--brass-hi); transition: transform .25s var(--spring); }
+.fs-btn i:nth-child(1) { left: 9px; top: 9px; border-width: 3px 0 0 3px; }
+.fs-btn i:nth-child(2) { right: 9px; top: 9px; border-width: 3px 3px 0 0; }
+.fs-btn i:nth-child(3) { left: 9px; bottom: 9px; border-width: 0 0 3px 3px; }
+.fs-btn i:nth-child(4) { right: 9px; bottom: 9px; border-width: 0 3px 3px 0; }
+.fs-btn.on i { transform: rotate(180deg); }
 .sound-btn i { width: 4px; background: var(--brass-hi); animation: eq 1s ease-in-out infinite alternate; }
 .sound-btn i:nth-child(1) { height: 40%; animation-delay: -.3s; }
 .sound-btn i:nth-child(2) { height: 90%; animation-delay: -.7s; }
@@ -400,6 +413,10 @@ button { font: inherit; color: inherit; }
   .battle-main > .side-left { order: 3; }
   .side-left .roster-panel .unit-list { max-height: 40vh; }
   .sound-btn { left: auto; right: 12px; bottom: 12px; width: 36px; height: 36px; padding: 9px; }
+  .fs-btn { left: auto; right: 58px; bottom: 12px; width: 36px; height: 36px; }
+  .fs-btn i { width: 8px; height: 8px; }
+  .fs-btn i:nth-child(odd) { left: 8px; } .fs-btn i:nth-child(even) { right: 8px; }
+  .fs-btn i:nth-child(-n+2) { top: 8px; } .fs-btn i:nth-child(n+3) { bottom: 8px; }
   .sound-panel { left: auto; right: 12px; bottom: 58px; transform-origin: bottom right; }
   .battle-main { grid-template-columns: 1fr; }
   #battle-board { height: auto; aspect-ratio: 288 / 292; }
