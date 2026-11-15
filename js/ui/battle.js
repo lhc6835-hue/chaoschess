@@ -5,7 +5,7 @@ import { makeWave, waveReward, killReward } from "../data/waves.js";
 import { load, save, slotToCell, cellToSlot, markSeen, recordRun } from "../save.js";
 import {
   createBattle, makeUnit, scaleUnit, unitAt, byId, alive, canAct, optionsAt,
-  moveTargets, attackTargets, abilityTargets, resolve, endTurn, hasAnyAction,
+  moveTargets, attackTargets, abilityTargets, resolve, endTurn, hasAnyAction, clone,
 } from "../game/battle.js";
 import { chooseAction } from "../game/ai.js";
 import { BoardView, cellCX, cellFeet } from "../render/board-view.js";
@@ -25,6 +25,76 @@ let goHome = null;
 let defeatHome = null;
 
 const nameOf = (u) => PIECES[u.key]?.name ?? u.key;
+
+// ── 전투 편의 설정 (기억해 둬요) ─────────────────────────────────
+const UI_KEY = "chaoschess.ui.v1";
+const ui = { speed: 1, threat: false };
+try {
+  Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY) || "{}"));
+} catch {
+  /* 기본값 */
+}
+const saveUi = () => {
+  try {
+    localStorage.setItem(UI_KEY, JSON.stringify(ui));
+  } catch {
+    /* 저장 못 해도 계속 */
+  }
+};
+function applyUi() {
+  if (view) view.clock.speed = ui.speed;
+  $("#btn-speed").textContent = `속도 ${ui.speed}배`;
+  $("#btn-threat").setAttribute("aria-pressed", String(ui.threat));
+  refreshThreat();
+}
+
+/** 적이 다음 턴에 공격할 수 있는 내 기물 */
+function threatenedIds(s) {
+  const out = new Set();
+  for (const e of alive(s, "enemy")) {
+    if (e.frozen > 0) continue;
+    for (const a of attackTargets(s, e)) for (const id of a.hits) out.add(id);
+  }
+  return out;
+}
+function refreshThreat() {
+  if (!view) return;
+  view.threat = ui.threat && battle && (phase === "player" || phase === "busy") ? threatenedIds(battle) : new Set();
+}
+
+/** 행동을 복제 상태에 미리 적용해서 결과를 보여줘요 */
+function showPreview(act) {
+  if (!view) return;
+  if (!act || !battle) return (view.preview = null);
+  const sim = clone(battle);
+  const evs = resolve(sim, act);
+  const map = new Map();
+  const at = (id) => (map.has(id) ? map.get(id) : map.set(id, { dmg: 0, absorbed: 0, heal: 0 }).get(id));
+  for (const e of evs) {
+    if (e.t === "hit") (at(e.id).dmg += e.dmg), (at(e.id).absorbed += e.absorbed ?? 0);
+    else if (e.t === "death") at(e.id).kill = true;
+    else if (e.t === "revive") at(e.id).revive = true;
+    else if (e.t === "heal") at(e.id).heal += e.amount;
+    else if (e.t === "poisoned") at(e.id).poison = true;
+    else if (e.t === "freeze") at(e.id).freeze = true;
+    else if (e.t === "shield") at(e.id).shield = true;
+  }
+  let danger = null;
+  if (act.kind === "move" || act.ability === "swap") {
+    const me = byId(sim, act.id);
+    if (me && threatenedIds(sim).has(me.id)) danger = { x: me.x, y: me.y };
+  }
+  view.preview = map.size || danger ? { map, danger } : null;
+}
+
+function onHover(c) {
+  if (phase !== "player" || selected == null || !$("#action-menu").hidden) return;
+  const me = byId(battle, selected);
+  if (!c || !me) return showPreview(null);
+  const opts = optionsAt(battle, me, c.x, c.y);
+  const pick = opts.find((o) => o.kind === "attack") ?? opts.find((o) => o.kind === "ability") ?? opts[0];
+  showPreview(pick ? { ...pick, id: me.id } : null);
+}
 
 export function bindBattle(go) {
   goHome = () => go("home");
@@ -49,11 +119,25 @@ export function bindBattle(go) {
     run.wave++;
     startWave();
   });
+  $("#btn-speed").addEventListener("click", () => {
+    ui.speed = ui.speed >= 3 ? 1 : ui.speed + 1;
+    saveUi();
+    applyUi();
+  });
+  $("#btn-threat").addEventListener("click", () => {
+    ui.threat = !ui.threat;
+    saveUi();
+    applyUi();
+  });
+  applyUi();
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeMenu();
       deselect();
     }
+    if ($("#battle").hidden || e.target.closest?.("input")) return;
+    if (e.key === "t" || e.key === "T" || e.key === "ㅅ") $("#btn-threat").click();
+    if (e.key === "s" || e.key === "S" || e.key === "ㄴ") $("#btn-speed").click();
   });
 }
 
@@ -81,6 +165,8 @@ export function startRun() {
   }
   view.resume();
   view.onCell = onCell;
+  view.onHover = onHover;
+  applyUi();
   view.vps.clear();
   view.fx = [];
   requestAnimationFrame(() => view.resize());
@@ -164,6 +250,7 @@ function playerTurn() {
   }
   phase = "player";
   setTurnTag("ally", battle.extraTurn ? "한 번 더!" : "나의 차례");
+  refreshThreat();
   $("#btn-pass").disabled = false;
 }
 
@@ -193,6 +280,7 @@ async function enemyTurn() {
 
 async function perform(act) {
   phase = "busy";
+  view.preview = null;
   const u = byId(battle, act.id);
   const names = new Map(battle.units.map((x) => [x.id, nameOf(x)]));
   const evs = resolve(battle, act);
@@ -400,6 +488,7 @@ function deselect() {
   selected = null;
   if (view) {
     view.selected = null;
+    view.preview = null;
     if (phase !== "arrange") view.marks = { move: [], attack: [], ability: [], swap: [] };
     else view.marks.swap = [];
   }
@@ -411,6 +500,8 @@ function openMenu(me, c, opts) {
   const buttons = opts.map((o) =>
     h("button", {
       class: "btn k-" + o.kind,
+      onmouseenter: () => showPreview({ ...o, id: me.id }),
+      onfocus: () => showPreview({ ...o, id: me.id }),
       onclick: () => {
         closeMenu();
         const act = { ...o, id: me.id };
@@ -432,11 +523,13 @@ function openMenu(me, c, opts) {
   menu.style.animation = "none";
   void menu.offsetWidth;
   menu.style.animation = "";
+  showPreview({ ...(opts.find((o) => o.kind === "attack") ?? opts[0]), id: me.id });
   buttons[0].focus({ preventScroll: true });
 }
 
 function closeMenu() {
   $("#action-menu").hidden = true;
+  if (view) view.preview = null;
 }
 
 // ── 정보 카드 / 로그 / 배너 ─────────────────────────────────────
@@ -543,6 +636,7 @@ async function finishRun(reason) {
 // ── 왼쪽 현황 목록 + 웨이브 진행 막대 ────────────────────────────
 function refreshPanels() {
   if (!battle || !run) return;
+  refreshThreat();
   const list = (team) => {
     const units = battle.units.filter((u) => u.team === team && u.hp > 0).sort((a, b) => (b.key === "king") - (a.key === "king") || PIECES[b.key].price - PIECES[a.key].price);
     return units.map((u) => {
@@ -586,6 +680,7 @@ function refreshPanels() {
 // 자동 테스트용 도우미: 지금 할 수 있는 공격(없으면 전진)을 하나 알려줘요.
 window.__cc = {
   phase: () => phase,
+  threats: () => view?.threat?.size ?? 0,
   wave: () => run?.wave,
   autoAct() {
     if (!battle || phase !== "player") return false;

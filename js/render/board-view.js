@@ -30,6 +30,9 @@ export class BoardView {
     this.selected = null;
     this.hover = null;
     this.zone = null; // 재배치 구역 표시 { y0, y1 }
+    this.preview = null; // 행동 결과 미리보기: Map(id → { dmg, absorbed, kill, heal, revive, poison, freeze, shield }) + danger 칸
+    this.threat = new Set(); // 적이 다음 턴에 칠 수 있는 내 기물 id
+    this.onHover = null;
     this.onCell = null;
     this.frameBack = createFrame(W, H);
     this.frameFront = createFrame(W, H);
@@ -83,8 +86,16 @@ export class BoardView {
       const x = Math.floor((lx - BX) / CELL), y = Math.floor((ly - BY) / CELL);
       return x >= 0 && y >= 0 && x < 8 && y < 8 ? { x, y } : null;
     };
-    this.canvas.addEventListener("pointermove", (e) => (this.hover = toCell(e)));
-    this.canvas.addEventListener("pointerleave", () => (this.hover = null));
+    this.canvas.addEventListener("pointermove", (e) => {
+      const c = toCell(e);
+      const changed = (c?.x ?? -1) !== (this.hover?.x ?? -1) || (c?.y ?? -1) !== (this.hover?.y ?? -1);
+      this.hover = c;
+      if (changed) this.onHover?.(c);
+    });
+    this.canvas.addEventListener("pointerleave", () => {
+      this.hover = null;
+      this.onHover?.(null);
+    });
     this.canvas.addEventListener("click", (e) => {
       const c = toCell(e);
       this.onCell?.(c, e);
@@ -729,6 +740,42 @@ export class BoardView {
     this.drawPieces(g);
     if (hasFx) this.blit(g, this.frameFront, 1);
     this.drawFloats(g);
+    this.drawPreview(g);
+  }
+
+  drawPreview(g) {
+    const pv = this.preview;
+    if (!pv) return;
+    const bob = Math.sin(performance.now() / 220) * 1.5;
+    const label = (text, x, y, color) => {
+      g.save();
+      g.font = "9px Galmuri11, Galmuri9, monospace";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      const w = g.measureText(text).width + 6;
+      g.fillStyle = "rgba(20, 14, 28, .88)";
+      g.fillRect(Math.round(x - w / 2), Math.round(y - 6), Math.round(w), 12);
+      g.fillStyle = color;
+      g.fillRect(Math.round(x - w / 2), Math.round(y + 6), Math.round(w), 1);
+      g.fillText(text, x, y + 0.5);
+      g.restore();
+    };
+    for (const [id, p] of pv.map ?? []) {
+      const vp = this.vps.get(id);
+      if (!vp) continue;
+      const x = vp.x + vp.ox.v, y = vp.y - 34 + bob;
+      const bits = [];
+      if (p.revive) bits.push(["환생", "#ffb347"]);
+      else if (p.kill) bits.push(["처치!", "#ffe45c"]);
+      else if (p.dmg > 0) bits.push([`-${p.dmg}`, "#ff6a6a"]);
+      if (p.absorbed > 0) bits.push([`막음 ${p.absorbed}`, "#ffe9a0"]);
+      if (p.heal > 0) bits.push([`+${p.heal}`, "#9dff7a"]);
+      if (p.poison) bits.push(["중독", "#9dff5a"]);
+      if (p.freeze) bits.push(["빙결", "#bff0ff"]);
+      if (p.shield) bits.push(["보호막", "#ffe9a0"]);
+      bits.forEach(([t, c], i) => label(t, x, y - i * 13, c));
+    }
+    if (pv.danger) label("위험", cellCX(pv.danger.x), BY + pv.danger.y * CELL + 4 + bob, "#ff5a5a");
   }
 
   blit(g, frame, i) {
@@ -789,6 +836,29 @@ export class BoardView {
       bracket(c, "#c99bff", inset + 1);
     }
     for (const c of this.marks.swap) bracket(c, "rgba(255, 228, 160, 0.7)", 3);
+    // 위협 범위: 적이 칠 수 있는 내 기물 칸에 붉은 빗금
+    if (this.threat.size) {
+      for (const id of this.threat) {
+        const vp = this.vps.get(id);
+        if (!vp) continue;
+        const x0 = BX + vp.cx * CELL, y0 = BY + vp.cy * CELL;
+        g.fillStyle = `rgba(255, 60, 60, ${0.16 + 0.1 * pulse})`;
+        g.fillRect(x0, y0, CELL, CELL);
+        g.fillStyle = `rgba(255, 110, 110, ${0.5 + 0.25 * pulse})`;
+        for (let k = -CELL; k < CELL; k += 5)
+          for (let i = 0; i < CELL; i++) {
+            const xx = k + i;
+            if (xx >= 0 && xx < CELL && i % 2 === 0) g.fillRect(x0 + xx, y0 + CELL - 1 - i, 1, 1);
+          }
+      }
+    }
+    // 이동 미리보기: 그 칸에 가면 적에게 맞을 수 있으면 경고
+    if (this.preview?.danger) {
+      const c = this.preview.danger;
+      g.fillStyle = `rgba(255, 60, 60, ${0.18 + 0.12 * pulse})`;
+      g.fillRect(BX + c.x * CELL, BY + c.y * CELL, CELL, CELL);
+      bracket(c, "#ff5a5a", 1);
+    }
     if (this.selected) {
       const vp = this.vps.get(this.selected);
       if (vp) bracket({ x: vp.cx, y: vp.cy }, "#ffd45a", 1);
@@ -850,7 +920,7 @@ export class BoardView {
     g.restore();
     g.globalAlpha = 1;
     // 체력 바
-    const showHp = vp.team === "enemy" || vp.hp < vp.maxHp || vp.ghost > vp.hp || this.selected === vp.id || (this.hover && this.hover.x === vp.cx && this.hover.y === vp.cy);
+    const showHp = this.preview?.map?.has(vp.id) || vp.team === "enemy" || vp.hp < vp.maxHp || vp.ghost > vp.hp || this.selected === vp.id || (this.hover && this.hover.x === vp.cx && this.hover.y === vp.cy);
     if (vp.alpha > 0.5 && vp.z < 3 && showHp) this.drawHp(g, vp, x, vp.y + vp.oy.v);
   }
 
@@ -863,6 +933,25 @@ export class BoardView {
     g.fillRect(x0, y0, Math.round(w * gf), 2);
     g.fillStyle = vp.team === "enemy" ? "#ff5a5a" : vp.team === "summon" ? "#c58cff" : "#8fe36a";
     g.fillRect(x0, y0, Math.round(w * f), 2);
+    // 미리보기: 깎일 만큼 깜빡이기, 회복될 만큼 연두색
+    const pv = this.preview?.map?.get(vp.id);
+    if (pv) {
+      const blink = 0.45 + 0.55 * Math.abs(Math.sin(performance.now() / 160));
+      if (pv.dmg > 0) {
+        const after = Math.max(0, vp.hp - pv.dmg) / vp.maxHp;
+        g.globalAlpha = blink;
+        g.fillStyle = "#ffffff";
+        g.fillRect(x0 + Math.round(w * after), y0, Math.round(w * f) - Math.round(w * after), 2);
+        g.globalAlpha = 1;
+      }
+      if (pv.heal > 0) {
+        const after = Math.min(vp.maxHp, vp.hp + pv.heal) / vp.maxHp;
+        g.globalAlpha = blink;
+        g.fillStyle = "#c8ff8a";
+        g.fillRect(x0 + Math.round(w * f), y0, Math.round(w * after) - Math.round(w * f), 2);
+        g.globalAlpha = 1;
+      }
+    }
     if (vp.cd > 0) {
       g.fillStyle = "#c99bff";
       for (let i = 0; i < Math.min(5, vp.cd - 1); i++) g.fillRect(x0 + i * 2, y0 + 3, 1, 1);

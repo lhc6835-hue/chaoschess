@@ -248,6 +248,8 @@ button { font: inherit; color: inherit; }
 .unit-card .ab { background: rgba(176, 114, 240, .14); padding: 6px 8px; margin-top: 8px; font-size: 12px; }
 .muted { color: var(--bone-dim); margin: 0; }
 .side-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn.toggle[aria-pressed="true"] { background: #7a2a3a; color: #ffd6d6; border-bottom-color: #4a1220; }
+.btn.toggle[aria-pressed="true"]::before { content: ""; display: inline-block; width: 6px; height: 6px; background: #ff6a6a; margin-right: 6px; vertical-align: middle; animation: pulse .8s ease-in-out infinite alternate; }
 .log { background: rgba(26, 18, 36, .9); list-style: none; margin: 0; padding: 10px 12px; font-family: "Galmuri9"; font-size: 12px; max-height: 210px; overflow: auto; color: var(--bone-dim); }
 .log li { padding: 1px 0; animation: log-in .3s var(--spring); }
 .log li.ally b { color: var(--brass-hi); font-weight: 400; }

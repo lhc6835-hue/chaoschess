@@ -22,7 +22,7 @@ export class Clock {
     this.jobs = [];
   }
   hitstop(sec) {
-    this.stop = Math.max(this.stop, sec);
+    this.stop = Math.max(this.stop, sec / Math.max(1, this.speed));
   }
   /** 실시간 dt → 월드 dt */
   step(realDt) {
