@@ -3,15 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>카오스체스</title>
-  <link rel="stylesheet" href="css/style.css?v=20261115140923">
+  <title>Chaos Chess</title>
+  <link rel="stylesheet" href="css/style.css?v=20261115142753">
 </head>
 <body>
   <div id="app">
     <!-- 메인 화면 -->
     <section id="home" class="screen">
       <div class="home-left">
-        <h1 class="logo"><span>카오스</span><span>체스</span></h1>
+        <h1 class="logo" aria-label="Chaos Chess">
+          <span class="logo-chaos" aria-hidden="true"><span style="--r:-7deg;--y:-4px;--d:0.00s">C</span><span style="--r:5deg;--y:6px;--d:0.07s">h</span><span style="--r:-4deg;--y:-2px;--d:0.14s">a</span><span style="--r:8deg;--y:5px;--d:0.21s">o</span><span style="--r:-6deg;--y:-6px;--d:0.28s">s</span></span>
+          <span class="logo-chess" aria-hidden="true"><i style="--d:0.45s">C</i><i style="--d:0.51s">H</i><i style="--d:0.57s">E</i><i style="--d:0.63s">S</i><i style="--d:0.69s">S</i></span>
+        </h1>
         <p class="tagline">기물마다 능력이 다른 체스. 몰려오는 적을 웨이브마다 막아내세요.</p>
         <nav class="menu">
           <button class="btn btn-main" data-go="battle">출전하기</button>
@@ -179,42 +182,42 @@
   <script type="importmap" id="versions">
 {
   "imports": {
-    "./js/audio.js": "./js/audio.js?v=20261115140923",
-    "./js/data/pieces.js": "./js/data/pieces.js?v=20261115140923",
-    "./js/data/waves.js": "./js/data/waves.js?v=20261115140923",
-    "./js/fx/effects.js": "./js/fx/effects.js?v=20261115140923",
-    "./js/game/ai.js": "./js/game/ai.js?v=20261115140923",
-    "./js/game/battle.js": "./js/game/battle.js?v=20261115140923",
-    "./js/main.js": "./js/main.js?v=20261115140923",
-    "./js/render/anim.js": "./js/render/anim.js?v=20261115140923",
-    "./js/render/backdrop.js": "./js/render/backdrop.js?v=20261115140923",
-    "./js/render/board-view.js": "./js/render/board-view.js?v=20261115140923",
-    "./js/render/sprites.js": "./js/render/sprites.js?v=20261115140923",
-    "./js/save.js": "./js/save.js?v=20261115140923",
-    "./js/ui/battle.js": "./js/ui/battle.js?v=20261115140923",
-    "./js/ui/common.js": "./js/ui/common.js?v=20261115140923",
-    "./js/ui/formation.js": "./js/ui/formation.js?v=20261115140923",
-    "./js/ui/pages.js": "./js/ui/pages.js?v=20261115140923",
-    "./js/ui/shop.js": "./js/ui/shop.js?v=20261115140923",
-    "./js/ui/transition.js": "./js/ui/transition.js?v=20261115140923",
-    "./lib/pixelfx/core/act.js": "./lib/pixelfx/core/act.js?v=20261115140923",
-    "./lib/pixelfx/core/actor.js": "./lib/pixelfx/core/actor.js?v=20261115140923",
-    "./lib/pixelfx/core/chain.js": "./lib/pixelfx/core/chain.js?v=20261115140923",
-    "./lib/pixelfx/core/color.js": "./lib/pixelfx/core/color.js?v=20261115140923",
-    "./lib/pixelfx/core/font.js": "./lib/pixelfx/core/font.js?v=20261115140923",
-    "./lib/pixelfx/core/fx.js": "./lib/pixelfx/core/fx.js?v=20261115140923",
-    "./lib/pixelfx/core/index.js": "./lib/pixelfx/core/index.js?v=20261115140923",
-    "./lib/pixelfx/core/math.js": "./lib/pixelfx/core/math.js?v=20261115140923",
-    "./lib/pixelfx/core/painter.js": "./lib/pixelfx/core/painter.js?v=20261115140923",
-    "./lib/pixelfx/core/particles.js": "./lib/pixelfx/core/particles.js?v=20261115140923",
-    "./lib/pixelfx/core/poses.js": "./lib/pixelfx/core/poses.js?v=20261115140923",
-    "./lib/pixelfx/core/rig.js": "./lib/pixelfx/core/rig.js?v=20261115140923",
-    "./lib/pixelfx/core/scene.js": "./lib/pixelfx/core/scene.js?v=20261115140923",
-    "./lib/pixelfx/core/shapes.js": "./lib/pixelfx/core/shapes.js?v=20261115140923",
-    "./lib/pixelfx/core/sim.js": "./lib/pixelfx/core/sim.js?v=20261115140923"
+    "./js/audio.js": "./js/audio.js?v=20261115142753",
+    "./js/data/pieces.js": "./js/data/pieces.js?v=20261115142753",
+    "./js/data/waves.js": "./js/data/waves.js?v=20261115142753",
+    "./js/fx/effects.js": "./js/fx/effects.js?v=20261115142753",
+    "./js/game/ai.js": "./js/game/ai.js?v=20261115142753",
+    "./js/game/battle.js": "./js/game/battle.js?v=20261115142753",
+    "./js/main.js": "./js/main.js?v=20261115142753",
+    "./js/render/anim.js": "./js/render/anim.js?v=20261115142753",
+    "./js/render/backdrop.js": "./js/render/backdrop.js?v=20261115142753",
+    "./js/render/board-view.js": "./js/render/board-view.js?v=20261115142753",
+    "./js/render/sprites.js": "./js/render/sprites.js?v=20261115142753",
+    "./js/save.js": "./js/save.js?v=20261115142753",
+    "./js/ui/battle.js": "./js/ui/battle.js?v=20261115142753",
+    "./js/ui/common.js": "./js/ui/common.js?v=20261115142753",
+    "./js/ui/formation.js": "./js/ui/formation.js?v=20261115142753",
+    "./js/ui/pages.js": "./js/ui/pages.js?v=20261115142753",
+    "./js/ui/shop.js": "./js/ui/shop.js?v=20261115142753",
+    "./js/ui/transition.js": "./js/ui/transition.js?v=20261115142753",
+    "./lib/pixelfx/core/act.js": "./lib/pixelfx/core/act.js?v=20261115142753",
+    "./lib/pixelfx/core/actor.js": "./lib/pixelfx/core/actor.js?v=20261115142753",
+    "./lib/pixelfx/core/chain.js": "./lib/pixelfx/core/chain.js?v=20261115142753",
+    "./lib/pixelfx/core/color.js": "./lib/pixelfx/core/color.js?v=20261115142753",
+    "./lib/pixelfx/core/font.js": "./lib/pixelfx/core/font.js?v=20261115142753",
+    "./lib/pixelfx/core/fx.js": "./lib/pixelfx/core/fx.js?v=20261115142753",
+    "./lib/pixelfx/core/index.js": "./lib/pixelfx/core/index.js?v=20261115142753",
+    "./lib/pixelfx/core/math.js": "./lib/pixelfx/core/math.js?v=20261115142753",
+    "./lib/pixelfx/core/painter.js": "./lib/pixelfx/core/painter.js?v=20261115142753",
+    "./lib/pixelfx/core/particles.js": "./lib/pixelfx/core/particles.js?v=20261115142753",
+    "./lib/pixelfx/core/poses.js": "./lib/pixelfx/core/poses.js?v=20261115142753",
+    "./lib/pixelfx/core/rig.js": "./lib/pixelfx/core/rig.js?v=20261115142753",
+    "./lib/pixelfx/core/scene.js": "./lib/pixelfx/core/scene.js?v=20261115142753",
+    "./lib/pixelfx/core/shapes.js": "./lib/pixelfx/core/shapes.js?v=20261115142753",
+    "./lib/pixelfx/core/sim.js": "./lib/pixelfx/core/sim.js?v=20261115142753"
   }
 }
 </script>
-  <script type="module" src="js/main.js?v=20261115140923"></script>
+  <script type="module" src="js/main.js?v=20261115142753"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-# 카오스체스
+# Chaos Chess (카오스체스)
 
 기물마다 능력이 다른 체스 응용 턴제 웨이브 게임이에요. 브라우저에서 바로 돌아가고 빌드 과정이 없어요.
 
@@ -76,4 +76,5 @@ dev/          스프라이트·이펙트 확인용 페이지
 
 - pixelfx 코어: MIT, `lib/pixelfx/LICENSE`, `lib/pixelfx/NOTICE.md`
 - Galmuri 폰트: SIL Open Font License, `fonts/Galmuri-LICENSE.txt`
+- 타이틀 폰트 Jacquard 24, Silkscreen: SIL Open Font License, `fonts/Jacquard24-LICENSE.txt`, `fonts/Silkscreen-LICENSE.txt`
 - 배경음악, 징글, 효과음: 전부 CC0, 곡과 출처는 `assets/audio/CREDITS.md`

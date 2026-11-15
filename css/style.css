@@ -1,6 +1,8 @@
 @font-face { font-family: "Galmuri14"; src: url("../fonts/Galmuri14.woff2") format("woff2"); font-display: swap; }
 @font-face { font-family: "Galmuri11"; src: url("../fonts/Galmuri11.woff2") format("woff2"); font-display: swap; }
 @font-face { font-family: "Galmuri11"; src: url("../fonts/Galmuri11-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Jacquard24"; src: url("../fonts/Jacquard24.woff2") format("woff2"); font-display: block; }
+@font-face { font-family: "Silkscreen"; src: url("../fonts/Silkscreen-Bold.woff2") format("woff2"); font-weight: 700; font-display: block; }
 @font-face { font-family: "Galmuri9"; src: url("../fonts/Galmuri9.woff2") format("woff2"); font-display: swap; }
 
 :root {
@@ -88,10 +90,36 @@ button { font: inherit; color: inherit; }
 .tip p { margin: 0 0 8px; font-size: 13px; }
 .link-btn { background: none; border: 0; padding: 0; color: var(--violet); cursor: pointer; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
 .menu-row { display: flex; gap: 10px; flex-wrap: wrap; }
-.logo { font-family: "Galmuri14"; font-weight: 400; font-size: clamp(48px, 8vw, 84px); line-height: .95; margin: 0 0 16px; letter-spacing: -1px; }
-.logo span { display: block; }
-.logo span:first-child { color: var(--brass-hi); text-shadow: 4px 4px 0 var(--brass-lo), 8px 8px 0 var(--edge); }
-.logo span:last-child { color: var(--bone); text-shadow: 4px 4px 0 #6a4f80, 8px 8px 0 var(--edge); padding-left: .6em; }
+/* 타이틀: 픽셀 고딕체 "Chaos"(글자마다 비뚤게, 따로 출렁임) + 체스판 칸에 박힌 "CHESS" */
+.logo { margin: 0 0 26px; line-height: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; user-select: none; }
+.logo-chaos { display: flex; font-family: "Jacquard24", serif; font-weight: 400; font-size: clamp(76px, 9.5vw, 132px); letter-spacing: -2px; padding-left: 4px; }
+.logo-chaos span {
+  display: inline-block; color: var(--brass-hi);
+  text-shadow: 0 4px 0 #b9782a, 4px 7px 0 #6a3f86, 7px 10px 0 var(--edge);
+  transform: translateY(var(--y)) rotate(var(--r));
+  animation: chaos-drop .7s var(--squish) var(--d) both, chaos-wobble 3.2s ease-in-out calc(var(--d) * 4 + .8s) infinite;
+}
+.logo-chaos span:nth-child(odd) { color: #ffe39a; }
+.logo-chaos span:first-child { font-size: 1.12em; margin-right: -2px; }
+@keyframes chaos-drop {
+  0% { transform: translateY(-120px) rotate(calc(var(--r) * -3)) scale(.6, 1.5); opacity: 0; }
+  60% { transform: translateY(calc(var(--y) + 6px)) rotate(var(--r)) scale(1.18, .8); opacity: 1; }
+  100% { transform: translateY(var(--y)) rotate(var(--r)) scale(1); }
+}
+@keyframes chaos-wobble {
+  0%, 100% { transform: translateY(var(--y)) rotate(var(--r)); }
+  50% { transform: translateY(calc(var(--y) - 4px)) rotate(calc(var(--r) * -0.6)); }
+}
+.logo-chess { display: flex; margin-left: 14px; box-shadow: 0 0 0 3px var(--brass), 0 0 0 6px var(--edge), 6px 6px 0 6px rgba(18, 12, 25, .6); }
+.logo-chess i {
+  font-style: normal; font-family: "Silkscreen", monospace; font-weight: 700; font-size: clamp(22px, 2.6vw, 32px);
+  width: 1.6em; height: 1.6em; display: grid; place-items: center; color: var(--bone); background: #5f8a86;
+  text-shadow: 2px 2px 0 #2b3f40;
+  animation: tile-pop .45s var(--spring) var(--d) both;
+}
+.logo-chess i:nth-child(even) { background: #43676a; }
+.logo-chess i:nth-child(3) { color: #ffa496; text-shadow: 2px 2px 0 #4f1a33; }
+@keyframes tile-pop { from { transform: scale(0) rotate(-20deg); } }
 .tagline { color: var(--bone-dim); max-width: 32ch; margin: 0 0 22px; }
 .stats { display: flex; gap: 28px; margin-bottom: 24px; }
 .stats div { display: flex; flex-direction: column; }
