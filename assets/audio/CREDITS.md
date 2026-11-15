@@ -8,12 +8,13 @@
 | 파일 | 곡 | 작곡 | 출처 |
 |---|---|---|---|
 | menu.mp3 | [Chiptune] Medieval: The Old Tower Inn | RandomMind | chosic.com (CC0), SoundSafari/CC0-1.0-Music 저장소를 통해 받음 |
-| battle.mp3 | Battle Theme | Komiku | Free Music Archive (CC0), 같은 저장소 |
-| boss.mp3 | Boss 1 : The first challenge | Komiku | Free Music Archive (CC0), 같은 저장소 |
+| battle.mp3 | Old battle theme 2 | Monplaisir | chosic.com (CC0), 같은 저장소. 끝의 무음 3초를 잘라냄 |
+| boss.mp3 | Epicness in despair | Monplaisir | chosic.com (CC0), 같은 저장소 |
 
 ## 징글 (`jingle/`)
 
-웨이브 시작, 마왕 등장, 웨이브 클리어, 게임 오버: Beatscribe의 "Homebrew Free Jingle and Fanfare Music Assets" SNES 세트 (CC0), https://github.com/Beatscribe/homebrew_vgm
+- waveStart.mp3: 카오스체스 전용으로 직접 만든 8비트 팡파르. `tools/fanfare.py`로 합성해요 (`python3 tools/fanfare.py out.wav`).
+- 마왕 등장, 웨이브 클리어, 게임 오버: Beatscribe의 "Homebrew Free Jingle and Fanfare Music Assets" SNES 세트 (CC0), https://github.com/Beatscribe/homebrew_vgm
 
 ## 효과음 (`sfx/`)
 
