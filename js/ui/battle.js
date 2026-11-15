@@ -2,7 +2,7 @@
 // 죽은 기물은 그 출전에서 돌아오지 않아요. 살아남은 기물은 체력이 조금(최대치의 20%) 회복돼요.
 import { PIECES } from "../data/pieces.js";
 import { makeWave, waveReward, killReward } from "../data/waves.js";
-import { load, save, slotToCell, cellToSlot } from "../save.js";
+import { load, save, slotToCell, cellToSlot, markSeen, recordRun } from "../save.js";
 import {
   createBattle, makeUnit, scaleUnit, unitAt, byId, alive, canAct, optionsAt,
   moveTargets, attackTargets, abilityTargets, resolve, endTurn, hasAnyAction,
@@ -14,6 +14,7 @@ import * as FX from "../fx/effects.js";
 import { $, h, spriteCanvas, toast, modal, setGold, rarityTag, abilityLine } from "./common.js";
 import { sfx, jingle, music } from "../audio.js";
 import { idle } from "./transition.js";
+import { setBackdrop } from "../render/backdrop.js";
 
 let view = null;
 let run = null;
@@ -69,7 +70,7 @@ export function startRun() {
     units.push({ id: id++, uid, key: o.key, slot: Number(slot), hp: def.hp, maxHp: def.hp, atk: def.atk, summon: false, kills: 0 });
   }
   if (!units.some((u) => u.key === "king")) return false;
-  run = { wave: 1, seed: (Date.now() & 0xffffff) | 1, units, gold: 0, kills: 0 };
+  run = { wave: 1, seed: (Date.now() & 0xffffff) | 1, units, gold: 0, kills: 0, bossKills: 0, lost: 0 };
   d.runs = (d.runs ?? 0) + 1;
   save();
   const host = $("#battle-board");
@@ -120,11 +121,14 @@ async function startWave() {
   await idle();
   const bossWave = run.wave % 5 === 0;
   music(bossWave ? "boss" : "battle");
+  setBackdrop(bossWave ? "boss" : "battle");
   jingle(bossWave ? "boss" : "waveStart");
   await banner(`웨이브 ${run.wave}`, run.wave % 5 === 0 ? "마왕이 온다!" : `적 ${enemies.length}기`);
   enemies.sort((a, b) => a.y - b.y || Math.abs(a.x - 3.5) - Math.abs(b.x - 3.5));
   await Promise.all(enemies.map((u, i) => dropIn(u, i * 0.06)));
   log("sys", `웨이브 ${run.wave} 시작. 적 ${enemies.length}기.`);
+  markSeen(enemies.map((u) => u.key));
+  refreshPanels();
   playerTurn();
 }
 
@@ -196,6 +200,7 @@ async function perform(act) {
   await view.play(evs);
   view.sync(battle);
   refreshCard();
+  refreshPanels();
   afterAction();
 }
 
@@ -206,6 +211,8 @@ async function afterAction() {
   if (evs.length) {
     await view.play(evs);
     view.sync(battle);
+    markSeen(evs.filter((e) => e.t === "spawn").map((e) => e.unit.key));
+    refreshPanels();
   }
   if (battle.turn === "enemy") enemyTurn();
   else playerTurn();
@@ -214,7 +221,15 @@ async function afterAction() {
 function payKills(evs) {
   const d = load();
   let got = 0;
-  for (const e of evs) if (e.t === "death" && e.team === "enemy") (got += killReward(e.key)), run.kills++;
+  for (const e of evs) {
+    if (e.t === "death" && e.team === "enemy") {
+      got += killReward(e.key);
+      run.kills++;
+      if (e.key === "demon") run.bossKills++;
+    }
+    if (e.t === "death" && e.team === "ally" && e.key !== "skeleton") run.lost++;
+    if (e.t === "spawn") markSeen([e.unit.key]);
+  }
   if (got) {
     d.gold += got;
     run.gold += got;
@@ -282,6 +297,7 @@ async function waveClear() {
       vp.cd = 0;
     }),
   );
+  refreshPanels();
   enterArrange();
 }
 
@@ -493,6 +509,7 @@ async function finishRun(reason) {
   closeMenu();
   const d = load();
   const cleared = reason === "lose" || reason === "retreat" ? run.wave - 1 : run.wave;
+  recordRun({ wave: cleared, kills: run.kills, gold: run.gold, result: reason, bossKills: run.bossKills, lost: run.lost });
   d.best = Math.max(d.best ?? 0, cleared);
   save();
   if (reason === "lose") {
@@ -514,6 +531,49 @@ async function finishRun(reason) {
   battle = null;
   if (reason === "lose") defeatHome();
   else goHome();
+}
+
+// ── 왼쪽 현황 목록 + 웨이브 진행 막대 ────────────────────────────
+function refreshPanels() {
+  if (!battle || !run) return;
+  const list = (team) => {
+    const units = battle.units.filter((u) => u.team === team && u.hp > 0).sort((a, b) => (b.key === "king") - (a.key === "king") || PIECES[b.key].price - PIECES[a.key].price);
+    return units.map((u) => {
+      const def = PIECES[u.key];
+      const vteam = team === "ally" && u.summon ? "summon" : team;
+      const li = h("li", { class: `${u.summon ? "summon" : ""} ${u.frozen ? "frozen" : ""}`, title: def.name },
+        spriteCanvas(u.key, vteam, 1),
+        h("div", { class: "nm" }, h("span", {}, def.name), h("em", {}, `${u.hp}/${u.maxHp}`)),
+        h("div", { class: "bar" }, h("i", { style: `width:${(u.hp / u.maxHp) * 100}%` })),
+      );
+      li.addEventListener("click", () => {
+        if (phase === "player" && u.team === "ally" && byId(battle, u.id)) select(byId(battle, u.id));
+        else showCard(u);
+        const vp = view.vps.get(u.id);
+        if (vp) vp.sq.kick(-6);
+      });
+      return li;
+    });
+  };
+  const allies = list("ally"), enemies = list("enemy");
+  $("#ally-list").replaceChildren(...allies);
+  $("#enemy-list").replaceChildren(...(enemies.length ? enemies : [h("li", { class: "gone" }, h("span", {}, "남은 적이 없어요"))]));
+  $("#ally-count").textContent = `${allies.length}기`;
+  $("#enemy-count").textContent = `${enemies.length}기`;
+  // 진행 막대: 다섯 웨이브 묶음, 다섯 번째가 마왕
+  const w = run.wave, base = Math.floor((w - 1) / 5) * 5;
+  const pips = h("div", { class: "pips", "aria-hidden": "true" });
+  for (let i = 1; i <= 5; i++) {
+    const n = base + i;
+    pips.append(h("i", { class: `${n < w ? "done" : n === w ? "now" : ""} ${i === 5 ? "boss" : ""}` }));
+  }
+  const toBoss = 5 - ((w - 1) % 5) - 1;
+  $("#wave-strip").replaceChildren(
+    pips,
+    h("span", {}, "턴 ", h("b", {}, battle.turnNo ?? 1)),
+    h("span", {}, toBoss === 0 ? h("b", {}, "마왕 웨이브!") : ["마왕까지 ", h("b", {}, `${toBoss}웨이브`)]),
+    h("span", {}, "이번 출전 ", h("b", {}, `${run.kills}기 처치`), ", ", h("b", {}, `+${run.gold}G`)),
+  );
 }
 
 // 자동 테스트용 도우미: 지금 할 수 있는 공격(없으면 전진)을 하나 알려줘요.

@@ -7,11 +7,15 @@ export const SLOT_COUNT = 16;
 export const slotToCell = (i) => ({ x: i % 8, y: i < 8 ? 7 : 6 });
 export const cellToSlot = (x, y) => (y === 7 ? x : y === 6 ? 8 + x : -1);
 
+function freshStats() {
+  return { kills: 0, goldEarned: 0, wavesCleared: 0, bossKills: 0, deaths: 0 };
+}
+
 function fresh() {
   const owned = STARTER.map((key, i) => ({ uid: "u" + (i + 1), key }));
   const formation = {};
   owned.forEach((u, i) => (formation[i] = u.uid));
-  return { gold: 150, best: 0, runs: 0, nextUid: owned.length + 1, owned, formation };
+  return { gold: 150, best: 0, runs: 0, nextUid: owned.length + 1, owned, formation, stats: freshStats(), history: [], seen: {} };
 }
 
 let data = null;
@@ -25,6 +29,10 @@ export function load() {
     data = null;
   }
   if (!data || !Array.isArray(data.owned)) data = fresh();
+  // 예전 저장 데이터에 새 항목 채우기
+  data.stats = { ...freshStats(), ...(data.stats ?? {}) };
+  data.history ??= [];
+  data.seen ??= {};
   // 정의가 사라진 기물은 정리
   data.owned = data.owned.filter((u) => PIECES[u.key]);
   const ids = new Set(data.owned.map((u) => u.uid));
@@ -71,4 +79,25 @@ export function sell(uid) {
   d.gold += refund;
   save();
   return refund;
+}
+
+/** 도감: 만난 기물 기록 */
+export function markSeen(keys) {
+  const d = load();
+  let changed = false;
+  for (const k of keys) if (!d.seen[k]) (d.seen[k] = true), (changed = true);
+  if (changed) save();
+}
+
+/** 출전 하나가 끝났을 때 기록 */
+export function recordRun(r) {
+  const d = load();
+  d.history.unshift({ at: Date.now(), ...r });
+  d.history = d.history.slice(0, 30);
+  d.stats.kills += r.kills;
+  d.stats.goldEarned += r.gold;
+  d.stats.wavesCleared += r.wave;
+  d.stats.bossKills += r.bossKills ?? 0;
+  d.stats.deaths += r.lost ?? 0;
+  save();
 }

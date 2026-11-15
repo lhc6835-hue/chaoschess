@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>카오스체스</title>
-  <link rel="stylesheet" href="css/style.css?v=20261115135346">
+  <link rel="stylesheet" href="css/style.css?v=20261115140923">
 </head>
 <body>
   <div id="app">
@@ -13,20 +13,39 @@
       <div class="home-left">
         <h1 class="logo"><span>카오스</span><span>체스</span></h1>
         <p class="tagline">기물마다 능력이 다른 체스. 몰려오는 적을 웨이브마다 막아내세요.</p>
-        <div class="stats">
-          <div><span class="label">골드</span><b id="home-gold">0</b></div>
-          <div><span class="label">최고 웨이브</span><b id="home-best">0</b></div>
-        </div>
         <nav class="menu">
           <button class="btn btn-main" data-go="battle">출전하기</button>
-          <button class="btn" data-go="formation">편성</button>
-          <button class="btn" data-go="shop">상점</button>
+          <div class="menu-row">
+            <button class="btn" data-go="formation">편성</button>
+            <button class="btn" data-go="shop">상점</button>
+          </div>
+          <div class="menu-row">
+            <button class="btn" data-go="codex">도감</button>
+            <button class="btn" data-go="records">기록</button>
+            <button class="btn" data-go="help">게임 방법</button>
+          </div>
         </nav>
         <p class="hint" id="home-hint"></p>
       </div>
-      <div class="home-right">
+      <div class="home-center">
         <div class="board-host" id="home-board"></div>
+        <p class="caption">아래는 내 편성, 위는 첫 웨이브의 적이에요. 기물을 눌러 보세요.</p>
       </div>
+      <aside class="home-right">
+        <div class="panel">
+          <h3>내 군대</h3>
+          <dl class="kv" id="home-army"></dl>
+        </div>
+        <div class="panel">
+          <h3>최근 출전</h3>
+          <ol class="recent" id="home-recent"></ol>
+        </div>
+        <div class="panel tip">
+          <h3>오늘의 팁</h3>
+          <p id="home-tip"></p>
+          <button class="link-btn" id="home-tip-next" data-sfx="select">다른 팁 보기</button>
+        </div>
+      </aside>
     </section>
 
     <!-- 상점 -->
@@ -48,16 +67,69 @@
         <div class="gold-pill"><span class="coin"></span><b id="form-gold">0</b></div>
       </header>
       <p class="sub">위가 앞줄, 아래가 뒷줄이에요. 기물을 고른 뒤 칸을 누르면 배치돼요. 배치된 기물끼리는 자리가 바뀌어요.</p>
-      <div class="form-board" id="form-board"></div>
-      <div class="form-tools">
-        <span id="form-count"></span>
-        <button class="btn btn-small" id="form-unplace" disabled>빼기</button>
-        <button class="btn btn-small btn-warn" id="form-sell" disabled>판매</button>
-        <button class="btn btn-small" id="form-auto">자동 편성</button>
+      <div class="form-layout">
+        <div class="form-main">
+          <div class="form-board" id="form-board"></div>
+          <div class="form-tools">
+            <span id="form-count"></span>
+            <button class="btn btn-small" id="form-unplace" disabled>빼기</button>
+            <button class="btn btn-small btn-warn" id="form-sell" disabled>판매</button>
+            <button class="btn btn-small" id="form-auto">자동 편성</button>
+          </div>
+          <div class="panel">
+            <h3>편성 요약</h3>
+            <div class="form-summary" id="form-summary"></div>
+          </div>
+        </div>
+        <div class="form-side">
+          <h3 class="roster-title">대기 중인 기물</h3>
+          <div class="roster" id="form-roster"></div>
+          <div class="detail" id="form-detail"></div>
+        </div>
       </div>
-      <h3 class="roster-title">대기 중인 기물</h3>
-      <div class="roster" id="form-roster"></div>
-      <div class="detail" id="form-detail"></div>
+    </section>
+
+    <!-- 도감 -->
+    <section id="codex" class="screen" hidden>
+      <header class="bar">
+        <button class="btn btn-small" data-go="home">돌아가기</button>
+        <h2>도감</h2>
+        <div class="gold-pill" id="codex-count"></div>
+      </header>
+      <div class="filters" id="codex-filters"></div>
+      <div class="codex-layout">
+        <div class="codex-grid" id="codex-grid"></div>
+        <article class="codex-detail panel" id="codex-detail"></article>
+      </div>
+    </section>
+
+    <!-- 기록 -->
+    <section id="records" class="screen" hidden>
+      <header class="bar">
+        <button class="btn btn-small" data-go="home">돌아가기</button>
+        <h2>기록</h2>
+        <div class="gold-pill"><span class="coin"></span><b id="records-gold">0</b></div>
+      </header>
+      <div class="tiles" id="records-tiles"></div>
+      <div class="records-layout">
+        <div class="panel">
+          <h3>출전 이력</h3>
+          <ol class="history" id="records-history"></ol>
+        </div>
+        <div class="panel">
+          <h3>가장 많이 쓴 기물</h3>
+          <ol class="favorites" id="records-army"></ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 게임 방법 -->
+    <section id="help" class="screen" hidden>
+      <header class="bar">
+        <button class="btn btn-small" data-go="home">돌아가기</button>
+        <h2>게임 방법</h2>
+      </header>
+      <div class="help-grid" id="help-grid"></div>
     </section>
 
     <!-- 전투 -->
@@ -68,7 +140,14 @@
         <div class="turn-tag" id="turn-tag">나의 차례</div>
         <div class="gold-pill"><span class="coin"></span><b id="battle-gold">0</b></div>
       </header>
+      <div class="wave-strip" id="wave-strip"></div>
       <div class="battle-main">
+        <aside class="side side-left">
+          <div class="panel roster-panel">
+            <h3>아군 <span id="ally-count"></span></h3>
+            <ul class="unit-list" id="ally-list"></ul>
+          </div>
+        </aside>
         <div class="board-host" id="battle-board">
           <div class="banner" id="banner" hidden></div>
         </div>
@@ -77,6 +156,10 @@
           <div class="side-actions">
             <button class="btn btn-main" id="btn-next-wave" hidden>다음 웨이브 시작</button>
             <button class="btn btn-small" id="btn-pass">턴 넘기기</button>
+          </div>
+          <div class="panel roster-panel">
+            <h3>적 <span id="enemy-count"></span></h3>
+            <ul class="unit-list enemy" id="enemy-list"></ul>
           </div>
           <ol class="log" id="log"></ol>
         </aside>
@@ -96,40 +179,42 @@
   <script type="importmap" id="versions">
 {
   "imports": {
-    "./js/audio.js": "./js/audio.js?v=20261115135346",
-    "./js/data/pieces.js": "./js/data/pieces.js?v=20261115135346",
-    "./js/data/waves.js": "./js/data/waves.js?v=20261115135346",
-    "./js/fx/effects.js": "./js/fx/effects.js?v=20261115135346",
-    "./js/game/ai.js": "./js/game/ai.js?v=20261115135346",
-    "./js/game/battle.js": "./js/game/battle.js?v=20261115135346",
-    "./js/main.js": "./js/main.js?v=20261115135346",
-    "./js/render/anim.js": "./js/render/anim.js?v=20261115135346",
-    "./js/render/board-view.js": "./js/render/board-view.js?v=20261115135346",
-    "./js/render/sprites.js": "./js/render/sprites.js?v=20261115135346",
-    "./js/save.js": "./js/save.js?v=20261115135346",
-    "./js/ui/battle.js": "./js/ui/battle.js?v=20261115135346",
-    "./js/ui/common.js": "./js/ui/common.js?v=20261115135346",
-    "./js/ui/formation.js": "./js/ui/formation.js?v=20261115135346",
-    "./js/ui/shop.js": "./js/ui/shop.js?v=20261115135346",
-    "./js/ui/transition.js": "./js/ui/transition.js?v=20261115135346",
-    "./lib/pixelfx/core/act.js": "./lib/pixelfx/core/act.js?v=20261115135346",
-    "./lib/pixelfx/core/actor.js": "./lib/pixelfx/core/actor.js?v=20261115135346",
-    "./lib/pixelfx/core/chain.js": "./lib/pixelfx/core/chain.js?v=20261115135346",
-    "./lib/pixelfx/core/color.js": "./lib/pixelfx/core/color.js?v=20261115135346",
-    "./lib/pixelfx/core/font.js": "./lib/pixelfx/core/font.js?v=20261115135346",
-    "./lib/pixelfx/core/fx.js": "./lib/pixelfx/core/fx.js?v=20261115135346",
-    "./lib/pixelfx/core/index.js": "./lib/pixelfx/core/index.js?v=20261115135346",
-    "./lib/pixelfx/core/math.js": "./lib/pixelfx/core/math.js?v=20261115135346",
-    "./lib/pixelfx/core/painter.js": "./lib/pixelfx/core/painter.js?v=20261115135346",
-    "./lib/pixelfx/core/particles.js": "./lib/pixelfx/core/particles.js?v=20261115135346",
-    "./lib/pixelfx/core/poses.js": "./lib/pixelfx/core/poses.js?v=20261115135346",
-    "./lib/pixelfx/core/rig.js": "./lib/pixelfx/core/rig.js?v=20261115135346",
-    "./lib/pixelfx/core/scene.js": "./lib/pixelfx/core/scene.js?v=20261115135346",
-    "./lib/pixelfx/core/shapes.js": "./lib/pixelfx/core/shapes.js?v=20261115135346",
-    "./lib/pixelfx/core/sim.js": "./lib/pixelfx/core/sim.js?v=20261115135346"
+    "./js/audio.js": "./js/audio.js?v=20261115140923",
+    "./js/data/pieces.js": "./js/data/pieces.js?v=20261115140923",
+    "./js/data/waves.js": "./js/data/waves.js?v=20261115140923",
+    "./js/fx/effects.js": "./js/fx/effects.js?v=20261115140923",
+    "./js/game/ai.js": "./js/game/ai.js?v=20261115140923",
+    "./js/game/battle.js": "./js/game/battle.js?v=20261115140923",
+    "./js/main.js": "./js/main.js?v=20261115140923",
+    "./js/render/anim.js": "./js/render/anim.js?v=20261115140923",
+    "./js/render/backdrop.js": "./js/render/backdrop.js?v=20261115140923",
+    "./js/render/board-view.js": "./js/render/board-view.js?v=20261115140923",
+    "./js/render/sprites.js": "./js/render/sprites.js?v=20261115140923",
+    "./js/save.js": "./js/save.js?v=20261115140923",
+    "./js/ui/battle.js": "./js/ui/battle.js?v=20261115140923",
+    "./js/ui/common.js": "./js/ui/common.js?v=20261115140923",
+    "./js/ui/formation.js": "./js/ui/formation.js?v=20261115140923",
+    "./js/ui/pages.js": "./js/ui/pages.js?v=20261115140923",
+    "./js/ui/shop.js": "./js/ui/shop.js?v=20261115140923",
+    "./js/ui/transition.js": "./js/ui/transition.js?v=20261115140923",
+    "./lib/pixelfx/core/act.js": "./lib/pixelfx/core/act.js?v=20261115140923",
+    "./lib/pixelfx/core/actor.js": "./lib/pixelfx/core/actor.js?v=20261115140923",
+    "./lib/pixelfx/core/chain.js": "./lib/pixelfx/core/chain.js?v=20261115140923",
+    "./lib/pixelfx/core/color.js": "./lib/pixelfx/core/color.js?v=20261115140923",
+    "./lib/pixelfx/core/font.js": "./lib/pixelfx/core/font.js?v=20261115140923",
+    "./lib/pixelfx/core/fx.js": "./lib/pixelfx/core/fx.js?v=20261115140923",
+    "./lib/pixelfx/core/index.js": "./lib/pixelfx/core/index.js?v=20261115140923",
+    "./lib/pixelfx/core/math.js": "./lib/pixelfx/core/math.js?v=20261115140923",
+    "./lib/pixelfx/core/painter.js": "./lib/pixelfx/core/painter.js?v=20261115140923",
+    "./lib/pixelfx/core/particles.js": "./lib/pixelfx/core/particles.js?v=20261115140923",
+    "./lib/pixelfx/core/poses.js": "./lib/pixelfx/core/poses.js?v=20261115140923",
+    "./lib/pixelfx/core/rig.js": "./lib/pixelfx/core/rig.js?v=20261115140923",
+    "./lib/pixelfx/core/scene.js": "./lib/pixelfx/core/scene.js?v=20261115140923",
+    "./lib/pixelfx/core/shapes.js": "./lib/pixelfx/core/shapes.js?v=20261115140923",
+    "./lib/pixelfx/core/sim.js": "./lib/pixelfx/core/sim.js?v=20261115140923"
   }
 }
 </script>
-  <script type="module" src="js/main.js?v=20261115135346"></script>
+  <script type="module" src="js/main.js?v=20261115140923"></script>
 </body>
 </html>

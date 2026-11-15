@@ -10,6 +10,10 @@ import { renderFormation, bindFormation } from "./ui/formation.js";
 import { bindBattle, startRun, battleView } from "./ui/battle.js";
 import { cover, reveal, isBusy } from "./ui/transition.js";
 import { unlock, music, sfx, getPrefs, setPrefs } from "./audio.js";
+import { initBackdrop, setBackdrop } from "./render/backdrop.js";
+import { renderHomeSide, bindHomeSide, renderCodex, renderRecords, renderHelp } from "./ui/pages.js";
+
+const THEME = { home: "home", shop: "shop", formation: "home", codex: "codex", records: "codex", help: "codex", battle: "battle" };
 
 let homeView = null;
 let idleTimer = 0;
@@ -23,6 +27,10 @@ function show(name) {
   if (name === "home") renderHome();
   if (name === "shop") renderShop();
   if (name === "formation") renderFormation();
+  if (name === "codex") renderCodex();
+  if (name === "records") renderRecords();
+  if (name === "help") renderHelp();
+  setBackdrop(THEME[name] ?? "home");
   if (name !== "battle") music("menu");
   window.scrollTo(0, 0);
 }
@@ -46,9 +54,8 @@ function hasKing() {
 
 function renderHome() {
   const d = load();
-  setGold($("#home-gold"), d.gold);
-  $("#home-best").textContent = d.best ?? 0;
   $("#home-hint").textContent = hasKing() ? "" : "편성에 킹이 있어야 출전할 수 있어요.";
+  renderHomeSide();
 
   // 메인 화면 보드: 내 편성 + 첫 웨이브 적이 서로 마주보며 들썩여요
   const host = $("#home-board");
@@ -133,6 +140,8 @@ function bindUiSounds() {
 
 function init() {
   load();
+  initBackdrop();
+  bindHomeSide();
   for (const b of document.querySelectorAll("[data-go]"))
     b.addEventListener("click", () => {
       const to = b.dataset.go;

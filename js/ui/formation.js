@@ -1,7 +1,7 @@
 // 편성: 앞줄(8)·뒷줄(8) 칸에 보유 기물 배치. 고르고 → 칸 누르기, 배치된 것끼리는 자리 교환.
-import { PIECES, STARTER } from "../data/pieces.js";
+import { PIECES, STARTER, RARITY } from "../data/pieces.js";
 import { load, save, sell, SLOT_COUNT } from "../save.js";
-import { $, h, spriteCanvas, toast, setGold, rarityTag, abilityLine } from "./common.js";
+import { $, h, spriteCanvas, toast, setGold, rarityTag, abilityLine, patternGrid } from "./common.js";
 import { sfx } from "../audio.js";
 
 let picked = null; // { uid, from: "roster" | slotIndex }
@@ -42,6 +42,21 @@ export function renderFormation() {
   );
 
   $("#form-count").textContent = `배치 ${placed.size} / ${SLOT_COUNT}`;
+  // 편성 요약: 체력·공격 합, 원거리 수, 등급 분포
+  const units = [...placed].map((id) => byUid[id]).filter(Boolean).map((u) => PIECES[u.key]);
+  const stat = (label, v) => h("div", {}, h("span", {}, label), h("b", {}, v));
+  const bar = h("div", { class: "rarbar", title: "등급 분포" });
+  for (const r of ["base", "common", "rare", "epic", "legend"]) {
+    const n = units.filter((u) => u.rarity === r).length;
+    if (n) bar.append(h("i", { style: `width:${(n / units.length) * 100}%;background:${RARITY[r].color}`, title: `${RARITY[r].name} ${n}` }));
+  }
+  $("#form-summary").replaceChildren(
+    stat("체력 합", units.reduce((a, u) => a + u.hp, 0)),
+    stat("공격력 합", units.reduce((a, u) => a + u.atk, 0)),
+    stat("원거리", units.filter((u) => u.style === "ranged").length + "기"),
+    stat("능력 보유", units.filter((u) => u.ability || u.passive).length + "기"),
+    bar,
+  );
   const pu = picked && byUid[picked.uid];
   $("#form-unplace").disabled = !(picked && picked.from !== "roster");
   $("#form-sell").disabled = !pu || PIECES[pu.key].unique;
@@ -49,8 +64,17 @@ export function renderFormation() {
   const detail = $("#form-detail");
   if (pu) {
     const def = PIECES[pu.key];
-    detail.replaceChildren(h("b", {}, def.name, " "), rarityTag(pu.key), h("p", { class: "muted" }, `체력 ${def.hp}, 공격 ${def.atk}. ${def.desc}`), abilityLine(def) ?? "");
-  } else detail.replaceChildren();
+    detail.replaceChildren(
+      h("div", { class: "detail-head" }, spriteCanvas(pu.key, "ally", 4), h("div", {}, h("b", {}, def.name, " "), rarityTag(pu.key), h("p", { class: "muted" }, `체력 ${def.hp}, 공격 ${def.atk}, ${def.style === "ranged" ? "원거리" : "근접"}`))),
+      h("p", {}, def.desc),
+      h("div", { class: "pattern" }, patternGrid(pu.key), h("span", { class: "legend" }, h("i", { style: "background:#a8d8c8" }), "이동", h("i", { style: "background:var(--ember)" }), "공격")),
+      abilityLine(def) ?? "",
+    );
+  } else
+    detail.replaceChildren(
+      h("b", {}, "기물을 골라 보세요"),
+      h("p", { class: "muted" }, "위 대기 목록이나 편성 칸의 기물을 누르면 체력, 공격력, 능력이 여기에 나와요. 고른 상태에서 다른 칸을 누르면 자리가 바뀌어요."),
+    );
 }
 
 function pickRoster(uid) {
