@@ -72,7 +72,7 @@ export function renderFormation() {
     );
   } else
     detail.replaceChildren(
-      h("b", {}, "기물을 골라 보십시오"),
+      h("b", {}, "기물을 골라 보세요"),
       h("p", { class: "muted" }, "위 대기 목록이나 편성 칸의 기물을 누르면 체력, 공격력, 능력이 여기에 나옵니다. 고른 상태에서 다른 칸을 누르면 자리가 바뀝니다."),
     );
 }
