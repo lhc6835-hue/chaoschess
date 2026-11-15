@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Sprite preview</title>
+<body style="background:#20172b;margin:0">
+<canvas id="c"></canvas>
+<script type="module">
+import { sprite, spriteKeys } from "../js/render/sprites.js";
+const c = document.getElementById("c"), g = c.getContext("2d"), Z = 4;
+c.width = spriteKeys.length * 22 * Z; c.height = 3 * 30 * Z;
+g.imageSmoothingEnabled = false;
+["ally", "enemy", "summon"].forEach((team, r) => spriteKeys.forEach((k, i) => {
+  const s = sprite(k, team);
+  g.fillStyle = (i + r) % 2 ? "#5f8a86" : "#43676a";
+  g.fillRect(i * 22 * Z, r * 30 * Z, 22 * Z, 30 * Z);
+  g.drawImage(s.img, (i * 22 + 11 - s.w / 2) * Z, (r * 30 + 28 - s.h) * Z, s.w * Z, s.h * Z);
+}));
+</script>
+</body>

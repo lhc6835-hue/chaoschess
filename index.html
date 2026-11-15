@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>카오스체스</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 메인 화면 -->
+    <section id="home" class="screen">
+      <div class="home-left">
+        <h1 class="logo"><span>카오스</span><span>체스</span></h1>
+        <p class="tagline">기물마다 능력이 다른 체스. 몰려오는 적을 웨이브마다 막아내세요.</p>
+        <div class="stats">
+          <div><span class="label">골드</span><b id="home-gold">0</b></div>
+          <div><span class="label">최고 웨이브</span><b id="home-best">0</b></div>
+        </div>
+        <nav class="menu">
+          <button class="btn btn-main" data-go="battle">출전하기</button>
+          <button class="btn" data-go="formation">편성</button>
+          <button class="btn" data-go="shop">상점</button>
+        </nav>
+        <p class="hint" id="home-hint"></p>
+      </div>
+      <div class="home-right">
+        <div class="board-host" id="home-board"></div>
+      </div>
+    </section>
+
+    <!-- 상점 -->
+    <section id="shop" class="screen" hidden>
+      <header class="bar">
+        <button class="btn btn-small" data-go="home">돌아가기</button>
+        <h2>상점</h2>
+        <div class="gold-pill"><span class="coin"></span><b id="shop-gold">0</b></div>
+      </header>
+      <div class="filters" id="shop-filters"></div>
+      <div class="shop-grid" id="shop-grid"></div>
+    </section>
+
+    <!-- 편성 -->
+    <section id="formation" class="screen" hidden>
+      <header class="bar">
+        <button class="btn btn-small" data-go="home">돌아가기</button>
+        <h2>편성</h2>
+        <div class="gold-pill"><span class="coin"></span><b id="form-gold">0</b></div>
+      </header>
+      <p class="sub">위가 앞줄, 아래가 뒷줄이에요. 기물을 고른 뒤 칸을 누르면 배치돼요. 배치된 기물끼리는 자리가 바뀌어요.</p>
+      <div class="form-board" id="form-board"></div>
+      <div class="form-tools">
+        <span id="form-count"></span>
+        <button class="btn btn-small" id="form-unplace" disabled>빼기</button>
+        <button class="btn btn-small btn-warn" id="form-sell" disabled>판매</button>
+        <button class="btn btn-small" id="form-auto">자동 편성</button>
+      </div>
+      <h3 class="roster-title">대기 중인 기물</h3>
+      <div class="roster" id="form-roster"></div>
+      <div class="detail" id="form-detail"></div>
+    </section>
+
+    <!-- 전투 -->
+    <section id="battle" class="screen" hidden>
+      <header class="bar battle-bar">
+        <button class="btn btn-small" id="btn-retreat">귀환</button>
+        <div class="wave-tag" id="wave-tag">웨이브 1</div>
+        <div class="turn-tag" id="turn-tag">나의 차례</div>
+        <div class="gold-pill"><span class="coin"></span><b id="battle-gold">0</b></div>
+      </header>
+      <div class="battle-main">
+        <div class="board-host" id="battle-board">
+          <div class="banner" id="banner" hidden></div>
+        </div>
+        <aside class="side">
+          <div class="unit-card" id="unit-card"><p class="muted">기물을 누르면 정보가 나와요.</p></div>
+          <div class="side-actions">
+            <button class="btn btn-main" id="btn-next-wave" hidden>다음 웨이브 시작</button>
+            <button class="btn btn-small" id="btn-pass">턴 넘기기</button>
+          </div>
+          <ol class="log" id="log"></ol>
+        </aside>
+      </div>
+      <div class="action-menu" id="action-menu" hidden></div>
+    </section>
+
+    <div class="modal" id="modal" hidden><div class="modal-box" id="modal-box"></div></div>
+    <div class="toast" id="toast" hidden></div>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

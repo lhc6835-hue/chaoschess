@@ -1,0 +1,78 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FX contact sheet</title>
+<body style="background:#20172b;margin:0;color:#f3e6cf;font:12px monospace">
+<canvas id="c"></canvas>
+<script type="module">
+import { createFrame, clearFrame, createFx } from "../lib/pixelfx/core/index.js";
+import * as FX from "../js/fx/effects.js";
+import { sprite } from "../js/render/sprites.js";
+
+const params = new URLSearchParams(location.search);
+const PW = 112, PH = 96, Z = 3;
+const TIMES = (params.get("t") ?? "0.04,0.08,0.14,0.22,0.35,0.55,0.8,1.1").split(",").map(Number);
+const S = (mod, o, label) => ({ mod, o, label });
+const ROWS = [
+  S(FX.strike, { style: "arc", palette: FX.PALS.gold, size: 0.75, x: 56, y: 56 }, "jab"),
+  S(FX.strike, { style: "ring", palette: FX.PALS.gold, x: 56, y: 56 }, "hoof"),
+  S(FX.strike, { style: "line", palette: FX.PALS.holy, x: 56, y: 56 }, "lightcut"),
+  S(FX.strike, { style: "slam", palette: FX.PALS.steel, size: 1.1, x: 56, y: 56 }, "crush"),
+  S(FX.strike, { style: "cross", palette: FX.PALS.gold, x: 56, y: 56 }, "cross"),
+  S(FX.strike, { style: "arc", palette: FX.PALS.blood, size: 1.35, x: 56, y: 56 }, "cleave"),
+  S(FX.strike, { style: "triple", palette: FX.PALS.steel, x: 56, y: 56 }, "daggers"),
+  S(FX.strike, { style: "claw", palette: FX.PALS.bone, x: 56, y: 56 }, "bone"),
+  S(FX.thrust, { x: 14, y: 50, len: 64 }, "thrust"),
+  S(FX.projectile, { x: 10, y: 50, dx: 90, dy: 0, kind: "arrow", palette: FX.PALS.steel, time: 0.3 }, "arrow"),
+  S(FX.projectile, { x: 10, y: 50, dx: 90, dy: 0, kind: "ember", time: 0.4 }, "ember"),
+  S(FX.projectile, { x: 10, y: 50, dx: 90, dy: 0, kind: "frost", palette: FX.PALS.ice, time: 0.4 }, "frostbolt"),
+  S(FX.projectile, { x: 10, y: 50, dx: 90, dy: 0, kind: "shadow", palette: FX.PALS.shadow, time: 0.4 }, "shadowbolt"),
+  S(FX.impact, { kind: "fire", x: 56, y: 50 }, "imp fire"),
+  S(FX.impact, { kind: "ice", palette: FX.PALS.ice, x: 56, y: 50 }, "imp ice"),
+  S(FX.impact, { kind: "shadow", palette: FX.PALS.shadow, x: 56, y: 50 }, "imp shadow"),
+  S(FX.blast, { x: 56, y: 50 }, "blast"),
+  S(FX.breath, { x: 8, y: 50, len: 96 }, "breath"),
+  S(FX.chain, { x: 10, y: 50, path: [[0, 0], [40, -10], [70, 12], [95, -4]] }, "chain"),
+  S(FX.healFx, { x: 56, y: 70 }, "heal"),
+  S(FX.summon, { x: 56, y: 70, palette: FX.PALS.shadow }, "summon"),
+  S(FX.summon, { x: 56, y: 70, palette: FX.PALS.hell }, "hellgate"),
+  S(FX.warp, { x: 56, y: 50 }, "warp"),
+  S(FX.smite, { x: 56, y: 80 }, "smite"),
+  S(FX.promote, { x: 56, y: 75 }, "promote"),
+  S(FX.freeze, { x: 56, y: 75 }, "freeze"),
+  S(FX.shatter, { x: 56, y: 75, pixels: sprite("rook", "enemy").pixels }, "shatter"),
+  S(FX.dust, { x: 56, y: 70 }, "dust"),
+];
+const only = params.get("only");
+const rows = only ? ROWS.filter((r) => only.split(",").includes(r.label)) : ROWS;
+const c = document.getElementById("c"), g = c.getContext("2d");
+c.width = (TIMES.length * PW + 70) * Z; c.height = rows.length * PH * Z;
+g.imageSmoothingEnabled = false;
+const frame = createFrame(PW, PH), off = document.createElement("canvas");
+off.width = PW; off.height = PH;
+const og = off.getContext("2d"), img = og.createImageData(PW, PH), u32 = new Uint32Array(img.data.buffer);
+rows.forEach((r, ri) => {
+  g.fillStyle = "#f3e6cf"; g.font = `${10 * Z}px monospace`;
+  g.fillText(r.label, 4 * Z, (ri * PH + 50) * Z);
+  TIMES.forEach((T, ti) => {
+    const fx = createFx(r.mod, { seed: 3, ...r.o });
+    let t = 0; while (t < T - 1e-6) { const dt = Math.min(1 / 60, T - t); fx.update(dt); t += dt; }
+    clearFrame(frame);
+    fx.draw(frame);
+    // 배경 + 색 + 빛 (빛은 더하기)
+    for (let i = 0; i < PW * PH; i++) {
+      const x = i % PW, y = (i / PW) | 0;
+      const bg = ((x >> 5) + (y >> 5)) % 2 ? [0x43, 0x67, 0x6a] : [0x5f, 0x8a, 0x86];
+      const col = frame.color[i], a = (col >>> 24) / 255;
+      let R = bg[0] * (1 - a) + (col & 255) * a, G = bg[1] * (1 - a) + ((col >>> 8) & 255) * a, B = bg[2] * (1 - a) + ((col >>> 16) & 255) * a;
+      const l = frame.light[i];
+      R += l & 255; G += (l >>> 8) & 255; B += (l >>> 16) & 255;
+      u32[i] = (255 << 24) | (Math.min(255, B) << 16) | (Math.min(255, G) << 8) | Math.min(255, R);
+    }
+    og.putImageData(img, 0, 0);
+    g.drawImage(off, (70 + ti * PW) * Z, ri * PH * Z, PW * Z, PH * Z);
+    g.fillStyle = "#20172b"; g.fillRect((70 + ti * PW) * Z, ri * PH * Z, Z, PH * Z);
+  });
+});
+document.title = "done";
+</script>
+</body>
