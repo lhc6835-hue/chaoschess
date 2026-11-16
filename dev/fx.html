@@ -41,6 +41,8 @@ const ROWS = [
   S(FX.freeze, { x: 56, y: 75 }, "freeze"),
   S(FX.shatter, { x: 56, y: 75, pixels: sprite("rook", "enemy").pixels }, "shatter"),
   S(FX.dust, { x: 56, y: 70 }, "dust"),
+  S(FX.levelBurst, { x: 56, y: 50, tier: 2 }, "lv2"),
+  S(FX.levelBurst, { x: 56, y: 50, tier: 3 }, "lv3"),
 ];
 const only = params.get("only");
 const rows = only ? ROWS.filter((r) => only.split(",").includes(r.label)) : ROWS;

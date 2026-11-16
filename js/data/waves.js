@@ -88,7 +88,10 @@ export function makeWave(w, seed) {
     if (rows[row].length >= 8) break;
     const x = cols[rows[row].length];
     rows[row].push(key);
-    out.push({ key, x, y: row });
+    // 깊은 웨이브일수록 레벨 높은 적이 섞여요 (6웨이브부터 Lv2, 12웨이브부터 Lv3)
+    const r = R();
+    const lv = key === "demon" ? (w >= 15 ? 3 : w >= 10 ? 2 : 1) : w >= 12 ? (r < 0.25 ? 3 : r < 0.6 ? 2 : 1) : w >= 6 ? (r < Math.min(0.5, 0.1 + (w - 6) * 0.08) ? 2 : 1) : 1;
+    out.push({ key, x, y: row, lv });
   }
   return out;
 }

@@ -683,3 +683,48 @@ export const freeze = {
     };
   },
 };
+
+// ── 레벨 효과: 공격이 맞을 때 레벨 색 폭발 (Lv2 파란 별 파편, Lv3 금빛 광선 폭발) ──
+export const levelBurst = {
+  meta: { duration: 1.0, options: { seed: 1, tier: 2 } },
+  create(o) {
+    const R = new Rng(o.seed), lv3 = o.tier >= 3;
+    const C = fit(lv3 ? ["#5a3410", "#c8901e", "#ffd45a", "#ffe9a0", "#ffffff"] : ["#122a55", "#2f5fb0", "#6fa8ff", "#bfdcff", "#ffffff"], 5);
+    const ps = new Particles({ rng: R, sparks: [C[4], C[3], C[2]] });
+    const lights = new Lights();
+    lights.add(0, 0, lv3 ? 34 : 20, C[3], lv3 ? 0.9 : 0.6, 0.35);
+    const n = lv3 ? 18 : 9;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU + R.range(-0.2, 0.2), sp = R.range(70, lv3 ? 190 : 130);
+      ps.spawn(lv3 ? P.SPARK : P.STAR, 0, 0, Math.cos(a) * sp, Math.sin(a) * sp - 20, R.range(0.2, 0.45), C[R.int(3, 4)], 1);
+    }
+    let t = 0;
+    return {
+      update(dt) {
+        t += dt;
+        ps.update(dt);
+        lights.update(dt);
+      },
+      draw(p) {
+        // Lv3: 8갈래 광선이 뻗었다 사라짐
+        if (lv3 && t < 0.3) {
+          const k = 1 - t / 0.3, L = 8 + 16 * ease.outCubic(t / 0.3);
+          for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * TAU + 0.39, len = i % 2 ? L * 0.6 : L;
+            p.line(Math.cos(a) * 3, Math.sin(a) * 3, Math.cos(a) * len, Math.sin(a) * len, i % 2 ? C[3] : WHITE, k);
+          }
+        }
+        // 레벨 색 고리
+        const rt = seg(t, 0.02, lv3 ? 0.45 : 0.35);
+        if (rt > 0 && rt < 1) {
+          const r = (lv3 ? 6 : 4) + (lv3 ? 16 : 10) * ease.outCubic(rt);
+          p.ring(0, 0, r, lv3 ? 2 : 1, (v) => (v > 0.5 ? C[4] : C[3]), 1 - rt);
+          p.glowRing(0, 0, r, 4, C[3], 0.4 * (1 - rt));
+        }
+        if (t < 0.08) sparkle(p, 0, 0, lv3 ? 6 : 4, C[3], C[4], 0.7);
+        ps.draw(p);
+        lights.draw(p);
+      },
+    };
+  },
+};

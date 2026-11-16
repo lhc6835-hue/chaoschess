@@ -4,15 +4,19 @@
 <body style="background:#20172b;margin:0">
 <canvas id="c"></canvas>
 <script type="module">
+// 줄: 아군 Lv1, Lv2, Lv3, 적 Lv1, 소환 Lv1 (?keys=pawn,rook 로 일부만)
 import { sprite, spriteKeys } from "../js/render/sprites.js";
-const c = document.getElementById("c"), g = c.getContext("2d"), Z = 4;
-c.width = spriteKeys.length * 22 * Z; c.height = 3 * 30 * Z;
+const q = new URLSearchParams(location.search).get("keys");
+const keys = q ? q.split(",") : spriteKeys;
+const ROWS = [["ally", 1], ["ally", 2], ["ally", 3], ["enemy", 1], ["summon", 1]];
+const c = document.getElementById("c"), g = c.getContext("2d"), Z = 4, CW = 22, CH = 34;
+c.width = keys.length * CW * Z; c.height = ROWS.length * CH * Z;
 g.imageSmoothingEnabled = false;
-["ally", "enemy", "summon"].forEach((team, r) => spriteKeys.forEach((k, i) => {
-  const s = sprite(k, team);
+ROWS.forEach(([team, lv], r) => keys.forEach((k, i) => {
+  const s = sprite(k, team, lv);
   g.fillStyle = (i + r) % 2 ? "#5f8a86" : "#43676a";
-  g.fillRect(i * 22 * Z, r * 30 * Z, 22 * Z, 30 * Z);
-  g.drawImage(s.img, (i * 22 + 11 - s.w / 2) * Z, (r * 30 + 28 - s.h) * Z, s.w * Z, s.h * Z);
+  g.fillRect(i * CW * Z, r * CH * Z, CW * Z, CH * Z);
+  g.drawImage(s.img, (i * CW + CW / 2 - s.w / 2) * Z, (r * CH + CH - 2 - s.h) * Z, s.w * Z, s.h * Z);
 }));
 </script>
 </body>

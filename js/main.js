@@ -79,7 +79,7 @@ function renderHome() {
     const o = d.owned.find((u) => u.uid === uid);
     if (!o || !PIECES[o.key]) continue;
     const c = slotToCell(Number(slot));
-    makeUnit(s, o.key, "ally", c.x, c.y);
+    makeUnit(s, o.key, "ally", c.x, c.y).lv = o.lv ?? 1;
   }
   for (const e of makeWave(1, 7)) makeUnit(s, e.key, "enemy", e.x, e.y);
   homeView.vps.clear();

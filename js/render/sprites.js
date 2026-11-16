@@ -472,7 +472,14 @@ const S = {
   ], noBase: false },
 };
 
-function buildRows(key) {
+// 레벨별 받침대: Lv2 은빛 띠, Lv3 금빛 테 + 금빛 띠
+const BASE_LV = {
+  1: BASE,
+  2: ["...o12222223o...", "..o1ssssssss3o..", ".o11SsSsSsSs33o.", ".oooooooooooooo."],
+  3: ["...oggggggggo...", "..o1gGgGgGgG3o..", ".o11gggggggg33o.", ".oooooooooooooo."],
+};
+
+function buildRows(key, lv = 1) {
   const d = S[key];
   let rows = [];
   if (d.hood) {
@@ -484,7 +491,19 @@ function buildRows(key) {
   } else if (d.mage) {
     rows = [...d.rows, ...BRIM_FACE, ...ROBE.slice(1)];
   } else rows = [...d.rows];
-  rows.push(...BASE.map((r) => (key === "demon" ? "." + r + "." : r)));
+  // Lv2 파란 허리띠, Lv3 금빛 허리띠 (받침대 바로 위 줄)
+  if (lv >= 2 && rows.length) {
+    const i = rows.length - 1, [hi, lo] = lv >= 3 ? ["g", "G"] : ["s", "S"];
+    let k = 0;
+    rows[i] = rows[i].replace(/[123]/g, () => (k++ % 2 ? lo : hi));
+  }
+  rows.push(...(BASE_LV[lv] ?? BASE).map((r) => (key === "demon" ? "." + r + "." : r)));
+  if (lv >= 3) {
+    // 머리 위에 떠 있는 금빛 고리
+    const w = Math.max(...rows.map((r) => r.length)), pad = (n) => ".".repeat(Math.floor((w - n) / 2));
+    const line = (str) => (pad(str.length) + str).padEnd(w, ".");
+    rows.unshift(line("gGggGg"), line("g......g").replace(/^(\.*)g/, "$1G"), line("gGggGg"), ".".repeat(w));
+  }
   const w = Math.max(...rows.map((r) => r.length));
   return rows.map((r) => r.padEnd(w, "."));
 }
@@ -532,13 +551,14 @@ function paint(rows, pal, mode) {
 const cache = new Map();
 
 /** { img, white, outline, w, h } — 이미지는 사방 1px 여백이 있어요. 발 위치 = 아래 가운데. */
-export function sprite(key, team) {
-  const id = key + ":" + team;
+export function sprite(key, team, lv = 1) {
+  lv = Math.min(3, Math.max(1, lv | 0 || 1));
+  const id = key + ":" + team + ":" + lv;
   if (cache.has(id)) return cache.get(id);
-  const rows = buildRows(S[key] ? key : "pawn");
+  const rows = buildRows(S[key] ? key : "pawn", lv);
   const tp = TEAM_PAL[team] ?? TEAM_PAL.ally;
   const [a, b, c] = ACC[S[key]?.acc ?? "gold"];
-  const pal = { ...tp, a, b, c, k: "#1a1220", w: "#ffffff" };
+  const pal = { ...tp, a, b, c, k: "#1a1220", w: "#ffffff", s: "#9ec5ff", S: "#4f6fb0", g: "#ffe066", G: "#c8901e" };
   const out = {
     img: paint(rows, pal, "color"),
     white: paint(rows, pal, "white"),

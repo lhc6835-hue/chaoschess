@@ -1,7 +1,7 @@
 // 도감, 기록, 게임 방법, 메인 화면 옆 패널.
 import { PIECES, RARITY, LORE } from "../data/pieces.js";
 import { load } from "../save.js";
-import { $, h, spriteCanvas, rarityTag, patternGrid, abilityLine, setGold } from "./common.js";
+import { $, h, spriteCanvas, rarityTag, patternGrid, abilityLine, setGold, levelTraitList } from "./common.js";
 
 // ── 메인 화면 옆 패널 ───────────────────────────────────────────
 const TIPS = [
@@ -114,10 +114,11 @@ function renderCodexDetail(d) {
     el.querySelector("canvas").style.filter = "brightness(0)";
     return;
   }
-  const teams = def.enemyOnly ? ["enemy"] : def.summon ? ["summon", "enemy"] : ["ally", "enemy"];
+  // 아군 기물은 Lv1~3 생김새를, 적·소환은 팀 색을 보여줘요
+  const looks = def.enemyOnly ? [["enemy", 1], ["enemy", 2], ["enemy", 3]] : def.summon ? [["summon", 1], ["enemy", 1]] : [["ally", 1], ["ally", 2], ["ally", 3]];
   const owned = d.owned.filter((u) => u.key === k).length;
   el.replaceChildren(
-    h("div", { class: "stage" }, ...teams.map((t) => spriteCanvas(k, t, 5))),
+    h("div", { class: "stage" }, ...looks.map(([t, lv]) => spriteCanvas(k, t, 4, lv))),
     h("h4", {}, def.name, rarityTag(k)),
     h("p", { class: "lore" }, LORE[k] ?? ""),
     h("div", { class: "row" },
@@ -130,6 +131,8 @@ function renderCodexDetail(d) {
     h("div", { class: "pattern" }, patternGrid(k), h("span", { class: "legend" }, h("i", { style: "background:#a8d8c8" }), "이동", h("i", { style: "background:var(--ember)" }), "공격")),
     h("p", { class: "lore" }, def.desc),
     abilityLine(def) ?? "",
+    def.summon ? "" : h("h5", { class: "lvhead" }, def.enemyOnly ? "깊은 웨이브에서 강해진 모습" : "레벨업 (편성 화면에서)"),
+    def.summon ? "" : levelTraitList(k, 3) ?? "",
   );
 }
 
@@ -196,6 +199,12 @@ export function renderHelp() {
       ul("적을 쓰러뜨리고 웨이브를 넘길 때마다 골드를 받습니다. 귀환하거나 져도 번 골드는 남습니다.",
         "상점에서 일반부터 전설까지 특수 능력 기물을 데려올 수 있습니다.",
         "편성에서 앞줄 8칸, 뒷줄 8칸을 채웁니다. 킹은 반드시 넣어야 합니다.")),
+    sec("레벨업", [spriteCanvas("knight", "ally", 4, 1), spriteCanvas("knight", "ally", 4, 2), spriteCanvas("knight", "ally", 4, 3)],
+      ul("편성 화면에서 기물을 고르고 레벨업 버튼을 누르면 영구히 강해집니다. 최대 Lv3입니다.",
+        "값은 구매 가격보다 조금 높습니다 (Lv2는 약 1.2배, Lv3은 약 1.45배).",
+        "레벨마다 새 특성이 붙고 체력이 오릅니다. Lv3에서는 공격력도 1 오릅니다.",
+        "Lv2는 파란 허리띠와 받침대, Lv3은 금빛 허리띠와 머리 위 고리로 바뀌고, 공격할 때 레벨 색 폭발이 함께 터집니다.",
+        "깊은 웨이브에서는 적도 레벨이 올라 나옵니다.")),
     sec("조작", null,
       ul(h("span", {}, h("span", { class: "key" }, "Esc"), " 선택 취소, 메뉴 닫기"),
         h("span", {}, h("span", { class: "key" }, "T"), " 위협 범위 켜고 끄기: 적이 다음 턴에 공격할 수 있는 내 기물이 붉은 빗금으로 보입니다"),

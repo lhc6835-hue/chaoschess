@@ -1,6 +1,21 @@
 // 전투 규칙. 상태는 순수 데이터, resolve()가 상태를 바꾸고 연출용 이벤트 목록을 돌려줘요.
 // AI는 clone() 한 상태에 같은 resolve()를 돌려서 수를 평가해요.
-import { PIECES, ALL } from "../data/pieces.js";
+import { PIECES, ALL, traitsAt, levelBonus } from "../data/pieces.js";
+
+/** 기물이 가진 특성(기본 패시브 + 레벨 특성) */
+export const hasP = (u, p) => traitsAt(u.key, u.lv ?? 1).includes(p);
+const bonusRange = (u) => (hasP(u, "longshot") ? 1 : 0);
+
+/** 레벨 적용: 체력/공격력 보너스, 결계 보호막 */
+export function applyLevel(u, lv) {
+  u.lv = lv;
+  const b = levelBonus(u.key, lv);
+  u.maxHp += b.hp;
+  u.hp += b.hp;
+  u.atk += b.atk;
+  if (hasP(u, "barrier")) u.shield = Math.max(u.shield ?? 0, 2);
+  return u;
+}
 
 export const SIZE = 8;
 export const inBoard = (x, y) => x >= 0 && y >= 0 && x < SIZE && y < SIZE;
@@ -26,7 +41,7 @@ export function makeUnit(state, key, team, x, y, extra = {}) {
   const u = {
     id: state.nextId++, key, team, x, y,
     hp: def.hp, maxHp: def.hp, atk: def.atk,
-    cd: 0, frozen: 0, moved: false, kills: 0, timer: 0, shield: 0, poison: 0, reborn: false,
+    cd: 0, frozen: 0, moved: false, kills: 0, timer: 0, shield: 0, poison: 0, reborn: false, lv: 1,
     summon: !!def.summon, ...extra,
   };
   state.units.push(u);
@@ -70,10 +85,11 @@ export function moveTargets(s, u) {
       if (inBoard(x, y) && !unitAt(s, x, y)) out.push({ x, y });
     }
   } else if (m.blink) {
-    for (let y = u.y - m.blink; y <= u.y + m.blink; y++)
-      for (let x = u.x - m.blink; x <= u.x + m.blink; x++)
+    const r = m.blink + (hasP(u, "swift") ? 1 : 0);
+    for (let y = u.y - r; y <= u.y + r; y++)
+      for (let x = u.x - r; x <= u.x + r; x++)
         if (inBoard(x, y) && !unitAt(s, x, y)) out.push({ x, y });
-  } else if (m.slide) out.push(...slideCells(s, u, m.slide, m.range));
+  } else if (m.slide) out.push(...slideCells(s, u, m.slide, Math.min(7, m.range + (hasP(u, "swift") ? 1 : 0))));
   return out;
 }
 
@@ -95,13 +111,13 @@ export function attackTargets(s, u) {
   } else if (a.area) {
     // 곡사: 체비셰프 거리 min~area 안의 적이면 사이에 뭐가 있어도 맞힘
     for (const t of s.units)
-      if (foe(t) && cheb(u, t) <= a.area && cheb(u, t) >= (a.min ?? 1))
+      if (foe(t) && cheb(u, t) <= a.area + bonusRange(u) && cheb(u, t) >= (a.min ?? 1))
         out.push({ x: t.x, y: t.y, hits: [t.id], dir: [Math.sign(t.x - u.x), Math.sign(t.y - u.y)] });
   } else if (a.slide) {
     const min = a.min ?? 1;
     for (const [dx, dy] of a.slide) {
       const line = [];
-      for (let k = 1; k <= a.range; k++) {
+      for (let k = 1; k <= Math.min(7, a.range + bonusRange(u)); k++) {
         const x = u.x + dx * k, y = u.y + dy * k;
         if (!inBoard(x, y)) break;
         const t = unitAt(s, x, y);
@@ -202,12 +218,12 @@ export function allActions(s, u) {
 
 // ── 피해/사망 ───────────────────────────────────────────────────
 function guarded(s, t) {
-  return s.units.some((g) => g.hp > 0 && g.team === t.team && g.id !== t.id && PIECES[g.key].passive === "guard" && cheb(g, t) === 1);
+  return s.units.some((g) => g.hp > 0 && g.team === t.team && g.id !== t.id && hasP(g, "guard") && cheb(g, t) === 1);
 }
 
 /** 전쟁군주 옆이면 공격력 +1 */
 export function atkOf(s, u) {
-  const aura = s.units.some((w) => w.hp > 0 && w.team === u.team && w.id !== u.id && PIECES[w.key].passive === "aura" && cheb(w, u) === 1);
+  const aura = s.units.some((w) => w.hp > 0 && w.team === u.team && w.id !== u.id && hasP(w, "aura") && cheb(w, u) === 1);
   return u.atk + (aura ? 1 : 0);
 }
 
@@ -216,7 +232,7 @@ function damage(s, ev, src, t, amount, extra = {}) {
   let dmg = amount;
   const guard = guarded(s, t);
   if (guard) dmg = Math.max(1, dmg - 1);
-  const stone = PIECES[t.key].passive === "stoneskin";
+  const stone = hasP(t, "stoneskin");
   if (stone) dmg = Math.max(1, dmg - 1);
   let absorbed = 0;
   if (t.shield > 0) {
@@ -227,16 +243,19 @@ function damage(s, ev, src, t, amount, extra = {}) {
   t.hp = Math.max(0, t.hp - dmg);
   ev.push({ t: "hit", id: t.id, from: src?.id, dmg, hp: t.hp, guard, stone, absorbed, shield: t.shield, ...extra });
   // 흡혈
-  if (src && src.hp > 0 && src.team !== t.team && PIECES[src.key].passive === "lifesteal" && dmg + absorbed > 0 && !extra.counter && !extra.bats) heal(s, ev, src, 1);
+  if (src && src.hp > 0 && src.team !== t.team && hasP(src, "lifesteal") && dmg + absorbed > 0 && !extra.counter && !extra.bats) heal(s, ev, src, 1);
+  // 가시: 공격받으면 공격자에게 1 (가시끼리 무한 반사 방지)
+  if (hasP(t, "thorns") && src && src.hp > 0 && src.team !== t.team && !extra.thorns && !extra.counter && !extra.poison && !extra.blast)
+    damage(s, ev, t, src, 1, { thorns: true });
   if (t.hp <= 0) return kill(s, ev, src, t);
   // 반격: 근접 거리에서 맞고 버티면 1 되돌려줌
-  if (PIECES[t.key].passive === "counter" && src && src.hp > 0 && src.team !== t.team && !extra.counter && cheb(src, t) === 1 && t.frozen === 0)
+  if (hasP(t, "counter") && src && src.hp > 0 && src.team !== t.team && !extra.counter && cheb(src, t) === 1 && t.frozen === 0)
     damage(s, ev, t, src, 1, { counter: true });
 }
 
 function kill(s, ev, src, t) {
   // 환생: 출전마다 한 번 되살아남
-  if (PIECES[t.key].passive === "rebirth" && !t.reborn) {
+  if (hasP(t, "rebirth") && !t.reborn) {
     t.reborn = true;
     t.hp = Math.ceil(t.maxHp / 2);
     t.poison = 0;
@@ -245,21 +264,21 @@ function kill(s, ev, src, t) {
   }
   ev.push({ t: "death", id: t.id, key: t.key, team: t.team, x: t.x, y: t.y });
   // 유폭: 쓰러지면 주변 적에게 3
-  if (PIECES[t.key].passive === "explode") {
+  if (hasP(t, "explode")) {
     ev.push({ t: "explode", id: t.id, x: t.x, y: t.y });
     for (const e of s.units.filter((e) => e.hp > 0 && e.team !== t.team && cheb(e, t) === 1)) damage(s, ev, t, e, 3, { blast: true });
   }
   if (t.key === "king" && t.team === "ally") s.over = "lose";
   if (src && src.hp > 0) {
     src.kills++;
-    if (PIECES[src.key].passive === "bloodlust") {
+    if (hasP(src, "bloodlust")) {
       src.atk++;
       ev.push({ t: "buff", id: src.id, atk: src.atk });
     }
   }
   // 망자의 부름: 반대편 네크로맨서 2칸 이내에서 쓰러지면 해골로 일어남
   if (t.key !== "skeleton") {
-    const necro = s.units.find((n) => n.hp > 0 && n.team !== t.team && PIECES[n.key].passive === "deathcall" && cheb(n, t) <= 2);
+    const necro = s.units.find((n) => n.hp > 0 && n.team !== t.team && hasP(n, "deathcall") && cheb(n, t) <= 2);
     if (necro && alive(s, necro.team).filter((k) => k.key === "skeleton").length < MAX_SKELETONS) {
       const sk = makeUnit(s, "skeleton", necro.team, t.x, t.y, { summon: true });
       scaleUnit(sk, s, necro.team);
@@ -268,10 +287,10 @@ function kill(s, ev, src, t) {
   }
 }
 
-function heal(s, ev, t, amount) {
+function heal(s, ev, t, amount, extra = {}) {
   const before = t.hp;
   t.hp = Math.min(t.maxHp, t.hp + amount);
-  if (t.hp > before) ev.push({ t: "heal", id: t.id, amount: t.hp - before, hp: t.hp });
+  if (t.hp > before) ev.push({ t: "heal", id: t.id, amount: t.hp - before, hp: t.hp, ...extra });
 }
 
 /** 적 유닛은 웨이브에 따라 강해져요. */
@@ -309,7 +328,7 @@ export function resolve(s, act) {
     u.y = act.y;
     u.moved = true;
     promoteIfNeeded(s, ev, u);
-    if (def.passive === "hitandrun") {
+    if (hasP(u, "hitandrun")) {
       const t = alive(s, other(u.team)).filter((t) => cheb(t, u) === 1).sort((a, b) => a.hp - b.hp)[0];
       if (t) {
         ev.push({ t: "attack", id: u.id, fx: "jab", style: "melee", cell: { x: t.x, y: t.y }, dir: [Math.sign(t.x - u.x), Math.sign(t.y - u.y)], targets: [t.id], quick: true });
@@ -320,7 +339,7 @@ export function resolve(s, act) {
     const targets = act.hits.map((id) => byId(s, id)).filter((t) => t && t.hp > 0);
     const main = byId(s, act.hits[0]) && unitAt(s, act.x, act.y);
     ev.push({ t: "attack", id: u.id, fx: def.fx, style: def.style, cell: { x: act.x, y: act.y }, dir: act.dir, targets: targets.map((t) => t.id) });
-    if (def.passive === "chain") {
+    if (hasP(u, "chain")) {
       // 첫 대상 + 옆으로 두 번 튀는 번개
       const hit = [main];
       let last = main;
@@ -335,20 +354,23 @@ export function resolve(s, act) {
       hit.forEach((t, j) => damage(s, ev, u, t, j === 0 ? A : Math.max(1, A - 1), { chain: j }));
     } else {
       for (const t of targets) {
+        if (u.hp <= 0) break; // 가시에 맞아 쓰러졌으면 멈춤
         let dmg = atkOf(s, u), crit = false;
-        if (def.passive === "ambush" && t.hp === t.maxHp) (dmg *= 2), (crit = true);
-        damage(s, ev, u, t, dmg, { crit });
-        if (def.passive === "freeze" && t.hp > 0) {
+        if (hasP(u, "ambush") && t.hp === t.maxHp) (dmg *= 2), (crit = true);
+        let exec = false;
+        if (hasP(u, "execute") && t.hp * 2 <= t.maxHp) (dmg += 2), (exec = true);
+        damage(s, ev, u, t, dmg, { crit, exec });
+        if (hasP(u, "freeze") && t.hp > 0) {
           t.frozen = 1;
           ev.push({ t: "freeze", id: t.id });
         }
-        if (def.passive === "poison" && t.hp > 0) {
+        if (hasP(u, "poison") && t.hp > 0) {
           t.poison = 3;
           ev.push({ t: "poisoned", id: t.id });
         }
       }
       // 포격: 맞은 칸 주변 적에게 1
-      if (def.passive === "splash")
+      if (hasP(u, "splash"))
         for (const e of alive(s, other(u.team)).filter((e) => !targets.includes(e) && Math.abs(e.x - act.x) <= 1 && Math.abs(e.y - act.y) <= 1))
           damage(s, ev, u, e, 1, { splash: true });
     }
@@ -362,7 +384,7 @@ export function resolve(s, act) {
     }
   } else if (act.kind === "ability") {
     const ab = def.ability;
-    u.cd = ab.cd + 1; // 이번 턴 끝에 1 줄어드니 +1
+    u.cd = ab.cd + 1 - (hasP(u, "quickcast") ? 1 : 0); // 이번 턴 끝에 1 줄어드니 +1, 숙련이면 -1
     ev.push({ t: "ability", id: u.id, ability: ab.id, name: ab.name, cell: { x: act.x, y: act.y } });
     if (ab.id === "fireball") {
       for (const t of alive(s, other(u.team)))
@@ -427,7 +449,8 @@ export function endTurn(s) {
   }
   s.turn = other(team);
   if (s.turn === "ally") s.turnNo++;
-  // 다음 턴 쪽의 시작 효과: 독
+  // 다음 턴 쪽의 시작 효과: 재생, 독
+  for (const u of alive(s, s.turn)) if (hasP(u, "regen") && u.hp < u.maxHp) heal(s, ev, u, 1, { regen: true });
   for (const u of alive(s, s.turn))
     if (u.poison > 0) {
       u.poison--;
@@ -436,7 +459,7 @@ export function endTurn(s) {
   s.units = s.units.filter((x) => x.hp > 0);
   if (!alive(s, "enemy").length && !s.over) s.over = "win";
   for (const u of alive(s, s.turn)) {
-    if (PIECES[u.key].passive === "spawner") {
+    if (hasP(u, "spawner")) {
       u.timer++;
       if (u.timer % 3 === 0) {
         const free = ALL.map(([dx, dy]) => ({ x: u.x + dx, y: u.y + dy })).filter((c) => inBoard(c.x, c.y) && !unitAt(s, c.x, c.y));

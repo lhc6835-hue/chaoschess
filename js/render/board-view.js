@@ -119,7 +119,7 @@ export class BoardView {
       sq: new Spring(1, 520, 13), ox: new Spring(0, 300, 12), oy: new Spring(0, 300, 12),
       flash: 0, alpha: opts.alpha ?? 1, scale: opts.scale ?? 1, tilt: 0,
       hp: u.hp, maxHp: u.maxHp, ghost: u.hp, ghostDelay: 0, frozen: u.frozen > 0, cd: u.cd,
-      shield: u.shield ?? 0, poison: u.poison ?? 0,
+      shield: u.shield ?? 0, poison: u.poison ?? 0, lv: u.lv ?? 1,
       bob: Math.random() * 10,
     };
     this.vps.set(u.id, vp);
@@ -141,6 +141,7 @@ export class BoardView {
       vp.cd = u.cd;
       vp.shield = u.shield ?? 0;
       vp.poison = u.poison ?? 0;
+      vp.lv = u.lv ?? 1;
       if (snap) {
         vp.ghost = u.hp;
         vp.cx = u.x;
@@ -280,6 +281,8 @@ export class BoardView {
     const col = ev.poison ? "#9dff5a" : ev.crit ? "#ffe45c" : vp.team === "enemy" ? "#ffffff" : "#ff8a8a";
     if (ev.dmg > 0 || !ev.absorbed) this.float(String(ev.dmg), vp.x, vp.y - 24, col, { big: ev.crit || ev.dmg >= 4 });
     if (ev.counter) this.float("반격", vp.x + 8, vp.y - 34, "#ffd47a", { delay: 0.08 });
+    if (ev.thorns) this.float("가시", vp.x + 8, vp.y - 34, "#b8ff8a", { delay: 0.05 });
+    if (ev.exec) this.float("처형!", vp.x, vp.y - 36, "#ff7a7a", { big: true, delay: 0.05 });
     if (ev.crit) this.float("급습!", vp.x, vp.y - 34, "#ffe45c", { delay: 0.05 });
     if (ev.guard) this.float("수호", vp.x + 10, vp.y - 14, "#b9c4d6", { delay: 0.1 });
     this.kickShake(0.8 + ev.dmg * 0.5 + (ev.crit ? 1.5 : 0));
@@ -292,7 +295,7 @@ export class BoardView {
     const c = this.clock;
     vp.flash = 1;
     await c.tween(0.09, (u) => (vp.scale = 1 + 0.25 * u), E.outQuad);
-    const sp = sprite(vp.key, vp.team);
+    const sp = sprite(vp.key, vp.team, vp.lv);
     this.sound("death", vp.x);
     this.spawnFx(FX.shatter, { x: vp.x + vp.ox.v, y: vp.y + vp.oy.v, pixels: sp.pixels, dir: Math.sign(vp.ox.v || 1) });
     this.vps.delete(ev.id);
@@ -367,8 +370,8 @@ export class BoardView {
           vp.ghost = Math.min(vp.ghost, ev.hp);
           vp.sq.kick(6);
           this.spawnFx(FX.healFx, { x: vp.x, y: vp.y });
-          this.sound("heal", vp.x, { vol: 0.7 });
-          this.float("+" + ev.amount, vp.x, vp.y - 24, "#9dff7a");
+          this.sound("heal", vp.x, { vol: ev.regen ? 0.35 : 0.7 });
+          this.float(ev.regen ? `재생 +${ev.amount}` : "+" + ev.amount, vp.x, vp.y - 24, "#9dff7a");
           break;
         }
         case "freeze": {
@@ -516,8 +519,12 @@ export class BoardView {
       const rec = await this.lunge(vp, tx, ty);
       const MSFX = { crush: "crush", hoof: "landHeavy", bash: "metal", cleave: "chop", daggers: "draw", palm: "hitHeavy", warcleave: "chop", fang: "slash", voidcut: "slash" };
       this.sound(MSFX[fx] ?? "slash", tx);
-      for (const t of targets)
-        this.spawnFx(FX.strike, { x: t.x, y: t.y - BODY, angle: ang, style: m.style, palette: m.palette, size: m.size });
+      const lvl = vp.lv ?? 1;
+      for (const t of targets) {
+        this.spawnFx(FX.strike, { x: t.x, y: t.y - BODY, angle: ang, style: m.style, palette: lvl >= 3 ? FX.PALS.holy : m.palette, size: m.size * (lvl >= 3 ? 1.25 : lvl >= 2 ? 1.1 : 1) });
+        if (lvl >= 2) this.spawnFx(FX.levelBurst, { x: t.x, y: t.y - BODY, tier: lvl });
+      }
+      if (lvl >= 3) this.sound("smite", tx, { vol: 0.35, rate: 1.6 });
       return rec;
     }
     if (PROJ[fx]) {
@@ -530,7 +537,10 @@ export class BoardView {
       await c.wait(time);
       this.sound(p.sHit, tx);
       if (fx === "cannon") (this.kickShake(3), (this.punch = 0.6));
-      for (const t of targets) this.spawnFx(FX.impact, { x: t.x, y: t.y - BODY, kind: p.impact, palette: p.ipal, size: p.size ?? 1 });
+      for (const t of targets) {
+        this.spawnFx(FX.impact, { x: t.x, y: t.y - BODY, kind: p.impact, palette: p.ipal, size: (p.size ?? 1) * ((vp.lv ?? 1) >= 3 ? 1.2 : 1) });
+        if ((vp.lv ?? 1) >= 2) this.spawnFx(FX.levelBurst, { x: t.x, y: t.y - BODY, tier: vp.lv });
+      }
       return null;
     }
     if (fx === "thrust") {
@@ -876,13 +886,30 @@ export class BoardView {
       g.beginPath();
       g.ellipse(x, y + 1, 7 * s, 2.5 * s, 0, 0, Math.PI * 2);
       g.fill();
+      // 레벨 오라: Lv2 파란 기운, Lv3 금빛 오라가 발밑에서 일렁임
+      if (vp.lv >= 2) {
+        const pulse = 0.5 + 0.5 * Math.sin(vp.bob * 3 + vp.id);
+        g.globalAlpha = vp.alpha * (vp.lv >= 3 ? 0.35 + 0.25 * pulse : 0.22 + 0.15 * pulse);
+        g.strokeStyle = vp.lv >= 3 ? "#ffd45a" : "#6fa8ff";
+        g.lineWidth = 1;
+        g.beginPath();
+        g.ellipse(x, y + 1, (9 + pulse * 1.5) * s, (3.2 + pulse * 0.5) * s, 0, 0, Math.PI * 2);
+        g.stroke();
+        if (vp.lv >= 3) {
+          g.globalAlpha = vp.alpha * 0.18 * (0.6 + 0.4 * pulse);
+          g.fillStyle = "#ffd45a";
+          g.beginPath();
+          g.ellipse(x, y + 1, 8 * s, 2.8 * s, 0, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
     }
     g.globalAlpha = 1;
     for (const vp of list) this.drawPiece(g, vp);
   }
 
   drawPiece(g, vp) {
-    const sp = sprite(vp.key, vp.team);
+    const sp = sprite(vp.key, vp.team, vp.lv);
     const x = vp.x + vp.ox.v, y = vp.y + vp.oy.v - vp.z;
     const sq = Math.max(0.55, Math.min(1.6, vp.sq.v));
     // 숨쉬는 듯한 아주 작은 들썩임
@@ -951,6 +978,10 @@ export class BoardView {
         g.fillRect(x0 + Math.round(w * f), y0, Math.round(w * after) - Math.round(w * f), 2);
         g.globalAlpha = 1;
       }
+    }
+    if (vp.lv >= 2) {
+      g.fillStyle = vp.lv >= 3 ? "#ffd45a" : "#6fa8ff";
+      for (let i = 0; i < vp.lv - 1; i++) g.fillRect(x0 - 3, y0 + 2 - i * 3, 2, 2);
     }
     if (vp.cd > 0) {
       g.fillStyle = "#c99bff";

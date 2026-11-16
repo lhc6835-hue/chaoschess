@@ -298,3 +298,91 @@ export const LORE = {
   imp: "마왕의 망토 자락에서 튀어나오는 졸개. 작지만 성가십니다.",
   demon: "혼돈의 판을 지배하려는 마왕. 다섯 번째 웨이브마다 모습을 드러냅니다.",
 };
+
+// ── 레벨업 (영구 성장) ─────────────────────────────────────────
+// 레벨마다 붙는 특성. [Lv2 특성, Lv3 특성]
+export const TRAITS = {
+  barrier: { name: "결계", desc: "웨이브가 시작될 때마다 피해 2를 막는 보호막을 두릅니다." },
+  execute: { name: "처형", desc: "체력이 절반 이하인 적에게 피해 +2." },
+  ambush: { name: "급습", desc: "체력이 가득 찬 적에게 두 배 피해." },
+  thorns: { name: "가시", desc: "공격받을 때마다 공격한 적에게 1 피해 (원거리 포함)." },
+  poison: { name: "독", desc: "맞은 적은 3턴 동안 매 턴 1씩 잃습니다." },
+  regen: { name: "재생", desc: "자기 차례가 시작될 때 체력을 1 회복합니다." },
+  stoneskin: { name: "돌 피부", desc: "받는 모든 피해 -1." },
+  splash: { name: "파편", desc: "맞은 적 주변의 적에게도 1 피해." },
+  lifesteal: { name: "흡혈", desc: "공격할 때마다 체력을 1 회복합니다." },
+  aura: { name: "지휘", desc: "바로 옆 아군의 공격력 +1." },
+  guard: { name: "수호", desc: "바로 옆 아군이 받는 피해 -1." },
+  longshot: { name: "사거리 증가", desc: "공격 사거리 +1." },
+  quickcast: { name: "숙련", desc: "능력 재사용 대기 시간 -1턴." },
+  swift: { name: "질주", desc: "이동 거리 +1." },
+  freeze: { name: "빙결", desc: "맞은 적은 다음 턴에 움직이지 못합니다." },
+  rebirth: { name: "환생", desc: "출전마다 한 번, 쓰러져도 체력 절반으로 되살아납니다." },
+  counter: { name: "반격", desc: "근접 공격을 받고 버티면 1 맞받아칩니다." },
+};
+
+export const LEVEL_TRAITS = {
+  pawn: ["barrier", "execute"],
+  knight: ["ambush", "thorns"],
+  bishop: ["poison", "regen"],
+  rook: ["stoneskin", "splash"],
+  queen: ["lifesteal", "aura"],
+  king: ["regen", "guard"],
+  spearman: ["longshot", "execute"],
+  archer: ["longshot", "poison"],
+  shield: ["thorns", "barrier"],
+  pyro: ["splash", "quickcast"],
+  frost: ["splash", "longshot"],
+  priest: ["quickcast", "guard"],
+  assassin: ["lifesteal", "execute"],
+  necro: ["quickcast", "lifesteal"],
+  storm: ["longshot", "freeze"],
+  berserker: ["swift", "lifesteal"],
+  dragon: ["stoneskin", "regen"],
+  chrono: ["quickcast", "freeze"],
+  paladin: ["quickcast", "guard"],
+  slinger: ["longshot", "splash"],
+  scout: ["swift", "execute"],
+  monk: ["regen", "thorns"],
+  venomist: ["longshot", "splash"],
+  cannoneer: ["longshot", "freeze"],
+  spellblade: ["swift", "execute"],
+  templar: ["quickcast", "barrier"],
+  bomber: ["swift", "rebirth"],
+  golem: ["thorns", "regen"],
+  vampire: ["quickcast", "ambush"],
+  illusionist: ["quickcast", "freeze"],
+  warlord: ["guard", "regen"],
+  archmage: ["quickcast", "longshot"],
+  phoenix: ["splash", "regen"],
+  skeleton: ["thorns", "regen"],
+  imp: ["swift", "thorns"],
+  demon: ["stoneskin", "regen"],
+};
+
+export const MAX_LV = 3;
+
+/** 레벨에 따른 체력/공격력 보너스 */
+export function levelBonus(key, lv) {
+  const hp = PIECES[key].hp;
+  if (lv >= 3) return { hp: Math.max(2, Math.round(hp * 0.5)), atk: 1 };
+  if (lv >= 2) return { hp: Math.max(1, Math.round(hp * 0.25)), atk: 0 };
+  return { hp: 0, atk: 0 };
+}
+
+/** 다음 레벨로 올리는 값: 구매 가격보다 조금 더 높게 (Lv2 ×1.2, Lv3 ×1.45) */
+export function levelCost(key, toLv) {
+  const base = PIECES[key].price || 120; // 킹처럼 값이 없는 기물은 120 기준
+  const raw = base * (toLv >= 3 ? 1.45 : 1.2);
+  return Math.max(toLv >= 3 ? 50 : 30, Math.ceil(raw / 5) * 5);
+}
+
+/** 이 레벨까지 얻은 특성 목록 (기본 패시브 포함) */
+export function traitsAt(key, lv) {
+  const out = [];
+  if (PIECES[key].passive) out.push(PIECES[key].passive);
+  const L = LEVEL_TRAITS[key];
+  if (L && lv >= 2) out.push(L[0]);
+  if (L && lv >= 3) out.push(L[1]);
+  return out;
+}

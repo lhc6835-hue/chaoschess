@@ -1,7 +1,7 @@
 // 편성: 앞줄(8)·뒷줄(8) 칸에 보유 기물 배치. 고르고 → 칸 누르기, 배치된 것끼리는 자리 교환.
-import { PIECES, STARTER, RARITY } from "../data/pieces.js";
-import { load, save, sell, SLOT_COUNT } from "../save.js";
-import { $, h, spriteCanvas, toast, setGold, rarityTag, abilityLine, patternGrid } from "./common.js";
+import { PIECES, STARTER, RARITY, MAX_LV, levelCost, levelBonus } from "../data/pieces.js";
+import { load, save, sell, SLOT_COUNT, levelUp } from "../save.js";
+import { $, h, spriteCanvas, toast, setGold, rarityTag, abilityLine, patternGrid, lvBadge, levelTraitList } from "./common.js";
 import { sfx } from "../audio.js";
 
 let picked = null; // { uid, from: "roster" | slotIndex }
@@ -26,7 +26,7 @@ export function renderFormation() {
         "aria-label": u ? PIECES[u.key].name : "빈 칸",
         onclick: () => clickSlot(slot),
       });
-      if (u) el.append(spriteCanvas(u.key, "ally", 3));
+      if (u) el.append(spriteCanvas(u.key, "ally", 3, u.lv), (u.lv ?? 1) > 1 ? lvBadge(u.lv) : "");
       return el;
     }),
   );
@@ -36,14 +36,17 @@ export function renderFormation() {
   roster.replaceChildren(
     ...(waiting.length
       ? waiting.map((u) =>
-          h("button", { class: "roster-item " + (picked?.uid === u.uid ? "sel" : ""), onclick: () => pickRoster(u.uid) }, spriteCanvas(u.key, "ally", 2), h("span", {}, PIECES[u.key].name)),
+          h("button", { class: "roster-item " + (picked?.uid === u.uid ? "sel" : ""), onclick: () => pickRoster(u.uid) }, spriteCanvas(u.key, "ally", 2, u.lv), h("span", {}, PIECES[u.key].name), (u.lv ?? 1) > 1 ? lvBadge(u.lv) : ""),
         )
       : [h("p", { class: "empty" }, "모든 기물이 배치되어 있습니다. 상점에서 더 데려올 수 있습니다.")]),
   );
 
   $("#form-count").textContent = `배치 ${placed.size} / ${SLOT_COUNT}`;
   // 편성 요약: 체력·공격 합, 원거리 수, 등급 분포
-  const units = [...placed].map((id) => byUid[id]).filter(Boolean).map((u) => PIECES[u.key]);
+  const units = [...placed].map((id) => byUid[id]).filter(Boolean).map((u) => {
+    const b = levelBonus(u.key, u.lv ?? 1), def = PIECES[u.key];
+    return { ...def, hp: def.hp + b.hp, atk: def.atk + b.atk };
+  });
   const stat = (label, v) => h("div", {}, h("span", {}, label), h("b", {}, v));
   const bar = h("div", { class: "rarbar", title: "등급 분포" });
   for (const r of ["base", "common", "rare", "epic", "legend"]) {
@@ -60,12 +63,26 @@ export function renderFormation() {
   const pu = picked && byUid[picked.uid];
   $("#form-unplace").disabled = !(picked && picked.from !== "roster");
   $("#form-sell").disabled = !pu || PIECES[pu.key].unique;
-  $("#form-sell").textContent = pu && !PIECES[pu.key].unique ? `판매 +${Math.floor(PIECES[pu.key].price / 2)}G` : "판매";
+  let refund = 0;
+  if (pu) {
+    refund = PIECES[pu.key].price;
+    for (let l = 2; l <= (pu.lv ?? 1); l++) refund += levelCost(pu.key, l);
+    refund = Math.floor(refund / 2);
+  }
+  $("#form-sell").textContent = pu && !PIECES[pu.key].unique ? `판매 +${refund}골드` : "판매";
   const detail = $("#form-detail");
   if (pu) {
-    const def = PIECES[pu.key];
+    const def = PIECES[pu.key], lv = pu.lv ?? 1, b = levelBonus(pu.key, lv);
+    const next = lv < MAX_LV ? levelCost(pu.key, lv + 1) : 0;
+    const upBtn = h("button", { class: "btn btn-main btn-small lvup-btn", disabled: lv >= MAX_LV || d.gold < next, "data-sfx": "none" },
+      lv >= MAX_LV ? "최대 레벨" : `Lv${lv + 1} 레벨업 (${next}골드)`);
+    upBtn.addEventListener("click", () => doLevelUp(pu.uid));
     detail.replaceChildren(
-      h("div", { class: "detail-head" }, spriteCanvas(pu.key, "ally", 4), h("div", {}, h("b", {}, def.name, " "), rarityTag(pu.key), h("p", { class: "muted" }, `체력 ${def.hp}, 공격 ${def.atk}, ${def.style === "ranged" ? "원거리" : "근접"}`))),
+      h("div", { class: "detail-head" },
+        h("div", { class: "lv-looks" }, ...[1, 2, 3].map((n) => h("div", { class: `look ${n === lv ? "now" : n < lv ? "past" : "next"}` }, spriteCanvas(pu.key, "ally", 3, n), h("span", {}, `Lv${n}`)))),
+        h("div", {}, h("b", {}, def.name, " "), rarityTag(pu.key), " ", lvBadge(lv), h("p", { class: "muted" }, `체력 ${def.hp + b.hp}, 공격 ${def.atk + b.atk}, ${def.style === "ranged" ? "원거리" : "근접"}`), upBtn),
+      ),
+      levelTraitList(pu.key, lv) ?? "",
       h("p", {}, def.desc),
       h("div", { class: "pattern" }, patternGrid(pu.key), h("span", { class: "legend" }, h("i", { style: "background:#a8d8c8" }), "이동", h("i", { style: "background:var(--ember)" }), "공격")),
       abilityLine(def) ?? "",
@@ -164,3 +181,20 @@ export function autoFormation() {
 }
 
 export { STARTER };
+
+function doLevelUp(uid) {
+  const d = load(), u = d.owned.find((o) => o.uid === uid);
+  if (!u) return;
+  const lv = levelUp(uid);
+  if (!lv) {
+    sfx("error");
+    return toast(u.lv >= MAX_LV ? "이미 최대 레벨입니다." : "골드가 부족합니다.");
+  }
+  sfx("promote");
+  sfx("coin", { delay: 0.05 });
+  toast(`${PIECES[u.key].name}이(가) Lv${lv}로 올랐습니다!`);
+  renderFormation();
+  // 레벨업 연출: 새 생김새가 반짝이며 튀어 오름
+  const now = document.querySelector("#form-detail .look.now");
+  now?.classList.add("leveled");
+}

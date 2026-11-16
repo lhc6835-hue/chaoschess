@@ -1,5 +1,5 @@
 // 영구 저장: 골드, 보유 기물, 편성, 최고 기록.
-import { STARTER, PIECES } from "./data/pieces.js";
+import { STARTER, PIECES, MAX_LV, levelCost } from "./data/pieces.js";
 
 const KEY = "chaoschess.save.v1";
 // 편성 칸: 0..7 = 뒷줄(y=7), 8..15 = 앞줄(y=6)
@@ -33,6 +33,7 @@ export function load() {
   data.stats = { ...freshStats(), ...(data.stats ?? {}) };
   data.history ??= [];
   data.seen ??= {};
+  for (const u of data.owned) u.lv = Math.min(3, Math.max(1, u.lv ?? 1));
   // 정의가 사라진 기물은 정리
   data.owned = data.owned.filter((u) => PIECES[u.key]);
   const ids = new Set(data.owned.map((u) => u.uid));
@@ -58,7 +59,7 @@ export function buy(key) {
   const d = load(), def = PIECES[key];
   if (!def || def.noShop || d.gold < def.price) return null;
   d.gold -= def.price;
-  const u = { uid: "u" + d.nextUid++, key };
+  const u = { uid: "u" + d.nextUid++, key, lv: 1 };
   d.owned.push(u);
   // 빈 편성 칸이 있으면 자동 배치 (앞줄 우선)
   for (const i of [8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7])
@@ -73,7 +74,9 @@ export function buy(key) {
 export function sell(uid) {
   const d = load(), u = d.owned.find((o) => o.uid === uid);
   if (!u || PIECES[u.key].unique) return 0;
-  const refund = Math.floor(PIECES[u.key].price / 2);
+  let spent = PIECES[u.key].price;
+  for (let l = 2; l <= (u.lv ?? 1); l++) spent += levelCost(u.key, l);
+  const refund = Math.floor(spent / 2); // 레벨업에 쓴 골드도 반을 돌려줘요
   d.owned = d.owned.filter((o) => o.uid !== uid);
   for (const s of Object.keys(d.formation)) if (d.formation[s] === uid) delete d.formation[s];
   d.gold += refund;
@@ -100,4 +103,17 @@ export function recordRun(r) {
   d.stats.bossKills += r.bossKills ?? 0;
   d.stats.deaths += r.lost ?? 0;
   save();
+}
+
+/** 레벨업: 성공하면 새 레벨, 골드 부족/최대 레벨이면 0 */
+export function levelUp(uid) {
+  const d = load(), u = d.owned.find((o) => o.uid === uid);
+  if (!u || u.lv >= MAX_LV) return 0;
+  const cost = levelCost(u.key, u.lv + 1);
+  if (d.gold < cost) return 0;
+  d.gold -= cost;
+  u.lv++;
+  d.stats.levelUps = (d.stats.levelUps ?? 0) + 1;
+  save();
+  return u.lv;
 }

@@ -1,6 +1,6 @@
 // 화면 공용 도우미: 스프라이트 캔버스, 토스트, 모달, 골드 표시, 패턴 미니맵.
 import { sprite } from "../render/sprites.js";
-import { PIECES, RARITY } from "../data/pieces.js";
+import { PIECES, RARITY, TRAITS, LEVEL_TRAITS, levelBonus } from "../data/pieces.js";
 import { createBattle, makeUnit, moveTargets, attackTargets } from "../game/battle.js";
 
 export const $ = (s, root = document) => root.querySelector(s);
@@ -15,8 +15,8 @@ export const h = (tag, attrs = {}, ...kids) => {
   return el;
 };
 
-export function spriteCanvas(key, team = "ally", scale = 3) {
-  const s = sprite(key, team);
+export function spriteCanvas(key, team = "ally", scale = 3, lv = 1) {
+  const s = sprite(key, team, lv);
   const c = document.createElement("canvas");
   c.width = s.w * scale;
   c.height = s.h * scale;
@@ -92,4 +92,23 @@ export function patternGrid(key) {
 export function abilityLine(def) {
   if (def.ability) return h("div", { class: "ab ability" }, h("b", {}, def.ability.name), ` (재사용 ${def.ability.cd}턴): ${def.ability.desc}`);
   return null;
+}
+
+/** 레벨 표시 뱃지 */
+export function lvBadge(lv) {
+  return h("span", { class: `lv lv${lv}`, title: `레벨 ${lv}` }, "Lv" + lv);
+}
+
+/** 레벨별 특성 목록: 얻은 것은 밝게, 아직인 것은 흐리게 */
+export function levelTraitList(key, lv = 1) {
+  const L = LEVEL_TRAITS[key];
+  if (!L) return null;
+  const def = PIECES[key];
+  const row = (n, title, body, got) => h("li", { class: `lvrow lv${n} ${got ? "got" : "locked"}` }, h("b", {}, `Lv${n}`), h("span", {}, h("em", {}, title), " ", body));
+  const b2 = levelBonus(key, 2), b3 = levelBonus(key, 3);
+  return h("ul", { class: "lvlist" },
+    row(1, "기본", def.passive && TRAITS[def.passive] ? `${TRAITS[def.passive].name} 능력을 처음부터 가지고 있습니다.` : "처음 데려온 상태입니다.", true),
+    row(2, TRAITS[L[0]].name, `${TRAITS[L[0]].desc} 체력 +${b2.hp}.`, lv >= 2),
+    row(3, TRAITS[L[1]].name, `${TRAITS[L[1]].desc} 체력 총 +${b3.hp}, 공격력 +${b3.atk}.`, lv >= 3),
+  );
 }

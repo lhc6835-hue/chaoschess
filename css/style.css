@@ -280,6 +280,36 @@ button { font: inherit; color: inherit; }
 .action-menu .btn.k-ability:hover { background: #7050a8; }
 .action-menu .btn.k-cancel { background: transparent; border-bottom-color: transparent; color: var(--bone-dim); font-weight: 400; }
 
+/* ── 레벨 ──────────────────────────────────────────────────── */
+.lv { display: inline-block; font-family: "Galmuri9"; font-size: 10px; line-height: 1; padding: 2px 4px; vertical-align: middle; color: #12101a; }
+.lv.lv1 { background: #b9b2a3; }
+.lv.lv2 { background: #6fa8ff; }
+.lv.lv3 { background: linear-gradient(#ffe066, #c8901e); box-shadow: 0 0 6px rgba(255, 212, 90, .6); }
+.slot .lv, .roster-item .lv { position: absolute; top: 3px; right: 3px; }
+.roster-item { position: relative; }
+.lvlist { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.lvlist li { display: grid; grid-template-columns: 34px 1fr; gap: 8px; padding: 5px 8px; background: rgba(255, 255, 255, .04); }
+.lvlist li b { font-family: "Galmuri9"; font-weight: 400; font-size: 11px; color: #12101a; text-align: center; align-self: start; padding: 1px 0; }
+.lvlist li.lv1 b { background: #b9b2a3; }
+.lvlist li.lv2 b { background: #6fa8ff; }
+.lvlist li.lv3 b { background: #ffd45a; }
+.lvlist li em { font-style: normal; color: var(--brass-hi); }
+.lvlist li.locked { opacity: .45; }
+.lvlist li.got.lv2 { box-shadow: inset 2px 0 0 #6fa8ff; }
+.lvlist li.got.lv3 { box-shadow: inset 2px 0 0 #ffd45a; }
+.lv-looks { display: flex; gap: 4px; align-items: flex-end; }
+.lv-looks .look { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--teal); padding: 4px 4px 2px; }
+.lv-looks .look span { font-family: "Galmuri9"; font-size: 10px; color: #12101a; }
+.lv-looks .look.next { opacity: .5; filter: saturate(.6); }
+.lv-looks .look.now { outline: 2px solid var(--brass-hi); }
+.lv-looks .look.leveled canvas { animation: lv-pop .7s var(--squish); }
+.lv-looks .look.leveled { animation: lv-glow 1s ease-out; }
+@keyframes lv-pop { 0% { transform: translateY(0) scale(1); } 30% { transform: translateY(-14px) scale(.8, 1.3); } 60% { transform: translateY(0) scale(1.25, .8); } }
+@keyframes lv-glow { 0% { box-shadow: 0 0 0 0 rgba(255, 224, 102, .9); } 100% { box-shadow: 0 0 0 18px rgba(255, 224, 102, 0); } }
+.lvup-btn { margin-top: 6px; }
+.detail-head { flex-wrap: wrap; }
+.detail-head canvas { background: none; padding: 0; }
+
 /* ── 편성 2단 ───────────────────────────────────────────────── */
 .form-layout { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: start; }
 .form-main { display: flex; flex-direction: column; gap: 0; }
@@ -313,6 +343,8 @@ button { font: inherit; color: inherit; }
 .codex-detail .row { display: flex; gap: 14px; font-family: "Galmuri9"; color: var(--bone-dim); margin-bottom: 10px; flex-wrap: wrap; }
 .codex-detail .row b { color: var(--bone); font-weight: 400; }
 .codex-detail .ability { background: rgba(176, 114, 240, .14); padding: 6px 8px; font-size: 12px; margin-top: 10px; }
+.codex-detail .lvhead { margin: 14px 0 0; font-family: "Galmuri11"; font-size: 13px; color: var(--brass-hi); }
+.unit-card .lvtraits { background: rgba(111, 168, 255, .14); }
 .codex-detail .pattern { display: flex; gap: 12px; align-items: center; font-family: "Galmuri9"; font-size: 11px; color: var(--bone-dim); }
 
 /* ── 기록 ──────────────────────────────────────────────────── */

@@ -1,17 +1,17 @@
 // 전투 화면 진행: 출전(run) → 웨이브 → 재배치 → 다음 웨이브 ... → 종료.
 // 죽은 기물은 그 출전에서 돌아오지 않아요. 살아남은 기물은 체력이 조금(최대치의 20%) 회복돼요.
-import { PIECES } from "../data/pieces.js";
+import { PIECES, levelBonus, TRAITS, LEVEL_TRAITS } from "../data/pieces.js";
 import { makeWave, waveReward, killReward } from "../data/waves.js";
 import { load, save, slotToCell, cellToSlot, markSeen, recordRun } from "../save.js";
 import {
-  createBattle, makeUnit, scaleUnit, unitAt, byId, alive, canAct, optionsAt,
+  createBattle, makeUnit, scaleUnit, unitAt, byId, alive, canAct, optionsAt, applyLevel, hasP,
   moveTargets, attackTargets, abilityTargets, resolve, endTurn, hasAnyAction, clone,
 } from "../game/battle.js";
 import { chooseAction } from "../game/ai.js";
 import { BoardView, cellCX, cellFeet } from "../render/board-view.js";
 import { E } from "../render/anim.js";
 import * as FX from "../fx/effects.js";
-import { $, h, spriteCanvas, toast, modal, setGold, rarityTag, abilityLine } from "./common.js";
+import { $, h, spriteCanvas, toast, modal, setGold, rarityTag, abilityLine, lvBadge } from "./common.js";
 import { sfx, jingle, music } from "../audio.js";
 import { idle } from "./transition.js";
 import { setBackdrop } from "../render/backdrop.js";
@@ -151,7 +151,8 @@ export function startRun() {
     const o = byUid[uid];
     if (!o) continue;
     const def = PIECES[o.key];
-    units.push({ id: id++, uid, key: o.key, slot: Number(slot), hp: def.hp, maxHp: def.hp, atk: def.atk, summon: false, kills: 0 });
+    const lv = o.lv ?? 1, b = levelBonus(o.key, lv);
+    units.push({ id: id++, uid, key: o.key, lv, slot: Number(slot), hp: def.hp + b.hp, maxHp: def.hp + b.hp, atk: def.atk + b.atk, summon: false, kills: 0 });
   }
   if (!units.some((u) => u.key === "king")) return false;
   run = { wave: 1, seed: (Date.now() & 0xffffff) | 1, units, gold: 0, kills: 0, bossKills: 0, lost: 0 };
@@ -194,11 +195,14 @@ async function startWave() {
     u.atk = r.atk;
     u.kills = r.kills;
     u.reborn = !!r.reborn;
+    u.lv = r.lv ?? 1;
+    if (hasP(u, "barrier")) u.shield = 2; // 결계: 웨이브마다 보호막
   }
   const spec = makeWave(run.wave, run.seed);
   const enemies = spec.map((s) => {
     const u = makeUnit(battle, s.key, "enemy", s.x, s.y);
     scaleUnit(u, battle, "enemy");
+    applyLevel(u, s.lv ?? 1);
     return u;
   });
   // 아군은 그대로, 적은 위에서 떨어지며 등장
@@ -358,7 +362,7 @@ async function waveClear() {
     let slot = prev ? prev.slot : null;
     if (slot == null || used.has(slot)) slot = null;
     const heal = Math.ceil(u.maxHp * 0.2);
-    next.push({ id: u.id, key: u.key, slot, hp: Math.min(u.maxHp, u.hp + heal), maxHp: u.maxHp, atk: u.atk, summon: u.summon, kills: u.kills, reborn: u.reborn });
+    next.push({ id: u.id, key: u.key, slot, hp: Math.min(u.maxHp, u.hp + heal), maxHp: u.maxHp, atk: u.atk, summon: u.summon, kills: u.kills, reborn: u.reborn, lv: u.lv });
     if (slot != null) used.add(slot);
   }
   // 소환수 등 자리가 없는 기물은 빈 칸에 (앞줄 우선)
@@ -556,13 +560,16 @@ function refreshCard() {
   if (u.atk > def.atk && u.team === "ally") status.push(`공격 +${u.atk - def.atk}`);
   el.replaceChildren(
     h("div", { class: "head" },
-      h("div", { class: "pic" }, spriteCanvas(u.key, team, 2)),
-      h("div", {}, h("h4", {}, def.name, " ", rarityTag(u.key)), h("div", { class: "row" }, h("span", {}, u.team === "ally" ? (u.summon ? "소환된 아군" : "아군") : "적"), status.length ? h("span", {}, status.join(", ")) : null)),
+      h("div", { class: "pic" }, spriteCanvas(u.key, team, 2, u.lv)),
+      h("div", {}, h("h4", {}, def.name, " ", rarityTag(u.key), " ", (u.lv ?? 1) > 1 ? lvBadge(u.lv) : ""), h("div", { class: "row" }, h("span", {}, u.team === "ally" ? (u.summon ? "소환된 아군" : "아군") : "적"), status.length ? h("span", {}, status.join(", ")) : null)),
     ),
     h("div", { class: "hpbar " + (u.team === "enemy" ? "enemy" : "") }, h("i", { style: `width:${(u.hp / u.maxHp) * 100}%` })),
     h("div", { class: "row" }, h("span", {}, "체력 ", h("b", {}, `${u.hp}/${u.maxHp}`)), h("span", {}, "공격 ", h("b", {}, u.atk)), h("span", {}, def.style === "ranged" ? "원거리" : "근접")),
     h("p", {}, def.desc),
     abilityLine(def) ?? "",
+    (u.lv ?? 1) > 1 && LEVEL_TRAITS[u.key]
+      ? h("div", { class: "ab lvtraits" }, h("b", {}, "레벨 특성 "), LEVEL_TRAITS[u.key].slice(0, u.lv - 1).map((t) => `${TRAITS[t].name}: ${TRAITS[t].desc}`).join(" "))
+      : "",
   );
 }
 
@@ -643,7 +650,7 @@ function refreshPanels() {
       const def = PIECES[u.key];
       const vteam = team === "ally" && u.summon ? "summon" : team;
       const li = h("li", { class: `${u.summon ? "summon" : ""} ${u.frozen ? "frozen" : ""}`, title: def.name },
-        spriteCanvas(u.key, vteam, 1),
+        spriteCanvas(u.key, vteam, 1, u.lv),
         h("div", { class: "nm" }, h("span", {}, def.name), h("em", {}, `${u.hp}/${u.maxHp}`)),
         h("div", { class: "bar" }, h("i", { style: `width:${(u.hp / u.maxHp) * 100}%` })),
       );
