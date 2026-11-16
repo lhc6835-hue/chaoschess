@@ -1,6 +1,6 @@
 // 전투 규칙. 상태는 순수 데이터, resolve()가 상태를 바꾸고 연출용 이벤트 목록을 돌려줘요.
 // AI는 clone() 한 상태에 같은 resolve()를 돌려서 수를 평가해요.
-import { PIECES, ALL, traitsAt, levelBonus } from "../data/pieces.js";
+import { PIECES, ALL, traitsAt, levelBonus, abilitiesAt } from "../data/pieces.js";
 
 /** 기물이 가진 특성(기본 패시브 + 레벨 특성) */
 export const hasP = (u, p) => traitsAt(u.key, u.lv ?? 1).includes(p);
@@ -41,7 +41,7 @@ export function makeUnit(state, key, team, x, y, extra = {}) {
   const u = {
     id: state.nextId++, key, team, x, y,
     hp: def.hp, maxHp: def.hp, atk: def.atk,
-    cd: 0, frozen: 0, moved: false, kills: 0, timer: 0, shield: 0, poison: 0, reborn: false, lv: 1,
+    cd: 0, cds: {}, frozen: 0, moved: false, kills: 0, timer: 0, shield: 0, poison: 0, reborn: false, lv: 1,
     summon: !!def.summon, ...extra,
   };
   state.units.push(u);
@@ -49,7 +49,7 @@ export function makeUnit(state, key, team, x, y, extra = {}) {
 }
 
 export function clone(state) {
-  return { ...state, units: state.units.map((u) => ({ ...u })) };
+  return { ...state, units: state.units.map((u) => ({ ...u, cds: { ...u.cds } })) };
 }
 
 export const unitAt = (s, x, y) => s.units.find((u) => u.x === x && u.y === y && u.hp > 0);
@@ -134,15 +134,77 @@ export function attackTargets(s, u) {
   return out;
 }
 
-export function abilityTargets(s, u) {
-  const ab = PIECES[u.key].ability;
-  if (!ab || u.cd > 0) return [];
+/** 기물이 지금 쓸 수 있는 능력 목록 (기본 능력 + 레벨 스킬, 재사용 대기 중인 건 제외) */
+export function readyAbilities(u) {
+  return abilitiesAt(u.key, u.lv ?? 1).filter((ab) => !((u.cds?.[ab.id] ?? 0) > 0));
+}
+
+/** 능력 대상 칸: [{ x, y, ability }] (ab를 주면 그 능력만) */
+export function abilityTargets(s, u, only = null) {
+  const list = only ? [only] : readyAbilities(u);
+  const all = [];
+  for (const ab of list) for (const c of abilityCells(s, u, ab)) all.push({ ...c, ability: ab.id });
+  return all;
+}
+
+function abilityCells(s, u, ab) {
   const out = [];
   const around = (r, fn) => {
     for (let y = u.y - r; y <= u.y + r; y++)
       for (let x = u.x - r; x <= u.x + r; x++) if (inBoard(x, y) && fn(x, y)) out.push({ x, y });
   };
+  const foeAt = (x, y) => {
+    const t = unitAt(s, x, y);
+    return t && t.team !== u.team ? t : null;
+  };
+  const self = () => out.push({ x: u.x, y: u.y });
+  const anyFoeNear = (r) => s.units.some((t) => t.hp > 0 && t.team !== u.team && cheb(t, u) <= r);
   switch (ab.id) {
+    // ── 레벨 스킬 ──
+    case "fortify":
+      if ((u.shield ?? 0) < 4) self();
+      break;
+    case "mend":
+      if (u.hp < u.maxHp) self();
+      break;
+    case "rally":
+      self();
+      break;
+    case "whirl":
+    case "frostnova":
+      if (anyFoeNear(1)) self();
+      break;
+    case "quake":
+      if (anyFoeNear(2)) self();
+      break;
+    case "dash":
+      for (const [dx, dy] of ALL)
+        for (let k = 1; k <= ab.range; k++) {
+          const x = u.x + dx * k, y = u.y + dy * k;
+          if (!inBoard(x, y)) break;
+          const t = unitAt(s, x, y);
+          if (!t) continue;
+          if (t.team !== u.team && k >= 2) out.push({ x, y });
+          break;
+        }
+      break;
+    case "push":
+    case "behead":
+      around(1, (x, y) => !!foeAt(x, y));
+      break;
+    case "snipe":
+    case "thunder":
+      around(ab.range, (x, y) => !!foeAt(x, y));
+      break;
+    case "shadowstep":
+      around(ab.range, (x, y) => !!foeAt(x, y) && ALL.some(([dx, dy]) => inBoard(x + dx, y + dy) && !unitAt(s, x + dx, y + dy)));
+      break;
+    case "bless":
+      around(ab.range, (x, y) => {
+        const t = unitAt(s, x, y);
+        return t && t.team === u.team && (t.hp < t.maxHp || t.poison > 0 || t.frozen > 0);
+      });
+      break;
     case "ward":
       around(ab.range, (x, y) => {
         const t = unitAt(s, x, y);
@@ -161,6 +223,8 @@ export function abilityTargets(s, u) {
         return t && t.id !== u.id;
       });
       break;
+    case "volley":
+    case "miasma":
     case "meteor":
     case "fireball":
       around(ab.range, (x, y) => {
@@ -202,8 +266,8 @@ export function optionsAt(s, u, x, y) {
   if (moveTargets(s, u).some((c) => c.x === x && c.y === y)) opts.push({ kind: "move", label: "이동", x, y });
   const at = attackTargets(s, u).find((c) => c.x === x && c.y === y);
   if (at) opts.push({ kind: "attack", label: "공격", x, y, hits: at.hits, dir: at.dir });
-  const ab = PIECES[u.key].ability;
-  if (abilityTargets(s, u).some((c) => c.x === x && c.y === y)) opts.push({ kind: "ability", label: ab.name, x, y, ability: ab.id });
+  for (const ab of readyAbilities(u))
+    if (abilityCells(s, u, ab).some((c) => c.x === x && c.y === y)) opts.push({ kind: "ability", label: ab.name, x, y, ability: ab.id });
   return opts;
 }
 
@@ -211,8 +275,7 @@ export function allActions(s, u) {
   const acts = [];
   for (const c of moveTargets(s, u)) acts.push({ kind: "move", id: u.id, x: c.x, y: c.y });
   for (const c of attackTargets(s, u)) acts.push({ kind: "attack", id: u.id, x: c.x, y: c.y, hits: c.hits, dir: c.dir });
-  const ab = PIECES[u.key].ability;
-  for (const c of abilityTargets(s, u)) acts.push({ kind: "ability", id: u.id, x: c.x, y: c.y, ability: ab.id });
+  for (const c of abilityTargets(s, u)) acts.push({ kind: "ability", id: u.id, x: c.x, y: c.y, ability: c.ability });
   return acts;
 }
 
@@ -314,6 +377,115 @@ function promoteIfNeeded(s, ev, u) {
   ev.push({ t: "promote", id: u.id, key: "queen", hp: u.hp, maxHp: u.maxHp });
 }
 
+// ── 레벨 스킬 ───────────────────────────────────────────────────
+function shieldUp(ev, t, amount) {
+  t.shield = Math.max(t.shield ?? 0, amount);
+  ev.push({ t: "shield", id: t.id, shield: t.shield });
+}
+
+/** 레벨 스킬이면 처리하고 true */
+function runSkill(s, ev, u, ab, act, target) {
+  const foes = () => alive(s, other(u.team));
+  const atk = atkOf(s, u);
+  switch (ab.id) {
+    case "fortify":
+      shieldUp(ev, u, 4);
+      return true;
+    case "mend":
+      heal(s, ev, u, 4);
+      return true;
+    case "rally":
+      for (const a of alive(s, u.team)) if (cheb(a, u) <= 2) shieldUp(ev, a, 2);
+      return true;
+    case "whirl":
+      for (const t of foes().filter((t) => cheb(t, u) === 1)) damage(s, ev, u, t, atk, { whirl: true });
+      return true;
+    case "frostnova":
+      for (const t of foes().filter((t) => cheb(t, u) === 1)) {
+        damage(s, ev, u, t, 1);
+        if (t.hp > 0) {
+          t.frozen = 1;
+          ev.push({ t: "freeze", id: t.id });
+        }
+      }
+      return true;
+    case "quake":
+      for (const t of foes().filter((t) => cheb(t, u) <= 2)) damage(s, ev, u, t, cheb(t, u) === 1 ? 2 : 1);
+      return true;
+    case "dash": {
+      if (!target) return true;
+      const dx = Math.sign(target.x - u.x), dy = Math.sign(target.y - u.y);
+      const to = { x: target.x - dx, y: target.y - dy };
+      ev.push({ t: "move", id: u.id, from: { x: u.x, y: u.y }, to, style: "dash" });
+      (u.x = to.x), (u.y = to.y), (u.moved = true);
+      ev.push({ t: "attack", id: u.id, fx: "crossCut", style: "melee", cell: { x: target.x, y: target.y }, dir: [dx, dy], targets: [target.id] });
+      damage(s, ev, u, target, atk + 1);
+      promoteIfNeeded(s, ev, u);
+      return true;
+    }
+    case "push": {
+      if (!target) return true;
+      const dx = Math.sign(target.x - u.x), dy = Math.sign(target.y - u.y);
+      damage(s, ev, u, target, 1);
+      if (target.hp <= 0) return true;
+      let moved = 0, nx = target.x, ny = target.y;
+      while (moved < 2 && inBoard(nx + dx, ny + dy) && !unitAt(s, nx + dx, ny + dy)) (nx += dx), (ny += dy), moved++;
+      if (moved) {
+        ev.push({ t: "move", id: target.id, from: { x: target.x, y: target.y }, to: { x: nx, y: ny }, style: "slide" });
+        (target.x = nx), (target.y = ny);
+      }
+      if (moved < 2) damage(s, ev, u, target, 2, { slam: true }); // 벽이나 기물에 부딪힘
+      return true;
+    }
+    case "volley":
+    case "miasma":
+      for (const t of foes())
+        if (Math.abs(t.x - act.x) <= 1 && Math.abs(t.y - act.y) <= 1) {
+          if (ab.id === "volley") damage(s, ev, u, t, 1);
+          else {
+            t.poison = 3;
+            ev.push({ t: "poisoned", id: t.id });
+          }
+        }
+      return true;
+    case "snipe":
+      if (target) damage(s, ev, u, target, atk + 2, { snipe: true });
+      return true;
+    case "thunder":
+      if (target) damage(s, ev, u, target, 3);
+      return true;
+    case "shadowstep": {
+      if (!target) return true;
+      const spots = ALL.map(([dx, dy]) => ({ x: target.x + dx, y: target.y + dy })).filter((c) => inBoard(c.x, c.y) && !unitAt(s, c.x, c.y));
+      spots.sort((a, b) => cheb(a, u) - cheb(b, u));
+      const to = spots[0];
+      if (!to) return true;
+      ev.push({ t: "move", id: u.id, from: { x: u.x, y: u.y }, to, style: "blink" });
+      (u.x = to.x), (u.y = to.y), (u.moved = true);
+      ev.push({ t: "attack", id: u.id, fx: "voidcut", style: "melee", cell: { x: target.x, y: target.y }, dir: [Math.sign(target.x - u.x), Math.sign(target.y - u.y)], targets: [target.id] });
+      damage(s, ev, u, target, atk);
+      return true;
+    }
+    case "behead":
+      if (target) {
+        if (target.hp * 2 <= target.maxHp) damage(s, ev, u, target, target.hp + (target.shield ?? 0) + 2, { exec: true });
+        else damage(s, ev, u, target, atk);
+      }
+      return true;
+    case "bless":
+      if (target) {
+        heal(s, ev, target, 3);
+        if (target.poison || target.frozen) {
+          target.poison = 0;
+          target.frozen = 0;
+          ev.push({ t: "cleanse", id: target.id });
+        }
+      }
+      return true;
+  }
+  return false;
+}
+
 // ── 행동 처리 ───────────────────────────────────────────────────
 export function resolve(s, act) {
   const ev = [];
@@ -383,10 +555,15 @@ export function resolve(s, act) {
       promoteIfNeeded(s, ev, u);
     }
   } else if (act.kind === "ability") {
-    const ab = def.ability;
-    u.cd = ab.cd + 1 - (hasP(u, "quickcast") ? 1 : 0); // 이번 턴 끝에 1 줄어드니 +1, 숙련이면 -1
+    const ab = abilitiesAt(u.key, u.lv ?? 1).find((a) => a.id === act.ability) ?? def.ability;
+    if (!ab) return ev;
+    u.cds = { ...u.cds, [ab.id]: ab.cd + 1 - (hasP(u, "quickcast") ? 1 : 0) }; // 이번 턴 끝에 1 줄어드니 +1, 숙련이면 -1
+    u.cd = Math.max(0, ...Object.values(u.cds));
     ev.push({ t: "ability", id: u.id, ability: ab.id, name: ab.name, cell: { x: act.x, y: act.y } });
-    if (ab.id === "fireball") {
+    const target = unitAt(s, act.x, act.y);
+    if (runSkill(s, ev, u, ab, act, target)) {
+      /* 레벨 스킬 처리 끝 */
+    } else if (ab.id === "fireball") {
       for (const t of alive(s, other(u.team)))
         if (Math.abs(t.x - act.x) <= 1 && Math.abs(t.y - act.y) <= 1) damage(s, ev, u, t, 2);
     } else if (ab.id === "heal") {
@@ -444,7 +621,8 @@ export function endTurn(s) {
     return ev; // 시간 가속: 같은 편이 한 번 더
   }
   for (const u of alive(s, team)) {
-    if (u.cd > 0) u.cd--;
+    for (const k of Object.keys(u.cds ?? {})) if (u.cds[k] > 0) u.cds[k]--;
+    u.cd = Math.max(0, ...Object.values(u.cds ?? {}));
     if (u.frozen > 0) u.frozen--;
   }
   s.turn = other(team);

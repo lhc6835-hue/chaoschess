@@ -1,6 +1,6 @@
 // 화면 공용 도우미: 스프라이트 캔버스, 토스트, 모달, 골드 표시, 패턴 미니맵.
 import { sprite } from "../render/sprites.js";
-import { PIECES, RARITY, TRAITS, LEVEL_TRAITS, levelBonus } from "../data/pieces.js";
+import { PIECES, RARITY, TRAITS, LEVEL_TRAITS, LEVEL_SKILLS, SKILLS, levelBonus } from "../data/pieces.js";
 import { createBattle, makeUnit, moveTargets, attackTargets } from "../game/battle.js";
 
 export const $ = (s, root = document) => root.querySelector(s);
@@ -104,11 +104,18 @@ export function levelTraitList(key, lv = 1) {
   const L = LEVEL_TRAITS[key];
   if (!L) return null;
   const def = PIECES[key];
-  const row = (n, title, body, got) => h("li", { class: `lvrow lv${n} ${got ? "got" : "locked"}` }, h("b", {}, `Lv${n}`), h("span", {}, h("em", {}, title), " ", body));
+  const row = (n, title, body, got, skillId) => {
+    const sk = skillId && SKILLS[skillId];
+    return h("li", { class: `lvrow lv${n} ${got ? "got" : "locked"}` }, h("b", {}, `Lv${n}`),
+      h("span", {},
+        sk ? h("span", { class: "skill" }, h("i", {}, "새 스킬"), " ", h("em", {}, sk.name), ` (재사용 ${sk.cd}턴): ${sk.desc}`) : "",
+        sk ? h("br") : "",
+        h("em", {}, title), " ", body));
+  };
   const b2 = levelBonus(key, 2), b3 = levelBonus(key, 3);
   return h("ul", { class: "lvlist" },
     row(1, "기본", def.passive && TRAITS[def.passive] ? `${TRAITS[def.passive].name} 능력을 처음부터 가지고 있습니다.` : "처음 데려온 상태입니다.", true),
-    row(2, TRAITS[L[0]].name, `${TRAITS[L[0]].desc} 체력 +${b2.hp}.`, lv >= 2),
-    row(3, TRAITS[L[1]].name, `${TRAITS[L[1]].desc} 체력 총 +${b3.hp}, 공격력 +${b3.atk}.`, lv >= 3),
+    row(2, TRAITS[L[0]].name, `${TRAITS[L[0]].desc} 체력 +${b2.hp}.`, lv >= 2, LEVEL_SKILLS[key]?.[0]),
+    row(3, TRAITS[L[1]].name, `${TRAITS[L[1]].desc} 체력 총 +${b3.hp}, 공격력 +${b3.atk}.`, lv >= 3, LEVEL_SKILLS[key]?.[1]),
   );
 }

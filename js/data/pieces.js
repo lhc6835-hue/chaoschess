@@ -386,3 +386,73 @@ export function traitsAt(key, lv) {
   if (L && lv >= 3) out.push(L[1]);
   return out;
 }
+
+// ── 레벨 스킬: 레벨이 오를 때마다 새 액티브 스킬이 하나씩 열림 ─────────
+// target: self(자신), enemy(적 칸), ally(아군 칸), cell(범위 중심 칸)
+export const SKILLS = {
+  fortify: { id: "fortify", name: "철벽", cd: 3, range: 0, target: "self", desc: "자신에게 피해 4를 막는 보호막을 두릅니다." },
+  dash: { id: "dash", name: "돌격", cd: 3, range: 3, target: "enemy", desc: "일직선으로 3칸 안의 적에게 달려들어 공격력 +1 피해를 줍니다." },
+  whirl: { id: "whirl", name: "회오리 베기", cd: 3, range: 1, target: "self", desc: "한 바퀴 돌며 주위의 적 모두에게 공격력만큼 피해를 줍니다." },
+  rally: { id: "rally", name: "격려", cd: 4, range: 2, target: "self", desc: "2칸 안의 아군 모두(자신 포함)에게 피해 2를 막는 보호막을 줍니다." },
+  mend: { id: "mend", name: "응급 처치", cd: 3, range: 0, target: "self", desc: "자신의 체력을 4 회복합니다." },
+  push: { id: "push", name: "밀쳐내기", cd: 2, range: 1, target: "enemy", desc: "옆의 적에게 1 피해를 주고 두 칸 밀어냅니다. 무언가에 부딪히면 2 더 피해를 줍니다." },
+  volley: { id: "volley", name: "화살비", cd: 3, range: 4, target: "cell", desc: "4칸 안의 지점에 화살을 쏟아 3×3 범위의 적에게 1 피해를 줍니다." },
+  snipe: { id: "snipe", name: "저격", cd: 3, range: 5, target: "enemy", desc: "5칸 안의 적 하나에게 공격력 +2 피해를 줍니다. 가로막혀도 맞힙니다." },
+  frostnova: { id: "frostnova", name: "냉기 폭발", cd: 4, range: 1, target: "self", desc: "주위의 적 모두에게 1 피해를 주고 얼립니다." },
+  miasma: { id: "miasma", name: "독 안개", cd: 4, range: 3, target: "cell", desc: "3칸 안의 지점에 독 안개를 퍼뜨려 3×3 범위의 적을 중독시킵니다." },
+  shadowstep: { id: "shadowstep", name: "그림자 도약", cd: 3, range: 4, target: "enemy", desc: "4칸 안의 적 옆으로 순간이동해 공격력만큼 피해를 줍니다." },
+  thunder: { id: "thunder", name: "낙뢰", cd: 3, range: 4, target: "enemy", desc: "4칸 안의 적 하나에게 하늘에서 번개를 내려 3 피해를 줍니다." },
+  quake: { id: "quake", name: "땅울림", cd: 4, range: 2, target: "self", desc: "땅을 내리쳐 2칸 안의 적 모두에게 1, 바로 옆의 적에게는 2 피해를 줍니다." },
+  behead: { id: "behead", name: "참수", cd: 3, range: 1, target: "enemy", desc: "옆의 적이 체력 절반 이하면 즉시 쓰러뜨립니다. 아니면 공격력만큼 피해를 줍니다." },
+  bless: { id: "bless", name: "축복", cd: 2, range: 3, target: "ally", desc: "3칸 안의 아군 체력을 3 회복하고 독과 빙결을 풀어 줍니다." },
+};
+
+// [Lv2에 열리는 스킬, Lv3에 열리는 스킬]
+export const LEVEL_SKILLS = {
+  pawn: ["fortify", "dash"],
+  knight: ["dash", "whirl"],
+  bishop: ["bless", "thunder"],
+  rook: ["push", "quake"],
+  queen: ["whirl", "shadowstep"],
+  king: ["rally", "behead"],
+  spearman: ["push", "dash"],
+  archer: ["volley", "snipe"],
+  shield: ["push", "rally"],
+  pyro: ["snipe", "volley"],
+  frost: ["frostnova", "snipe"],
+  priest: ["bless", "rally"],
+  assassin: ["shadowstep", "behead"],
+  necro: ["miasma", "mend"],
+  storm: ["thunder", "quake"],
+  berserker: ["whirl", "mend"],
+  dragon: ["whirl", "quake"],
+  chrono: ["shadowstep", "rally"],
+  paladin: ["fortify", "rally"],
+  slinger: ["volley", "snipe"],
+  scout: ["dash", "shadowstep"],
+  monk: ["push", "whirl"],
+  venomist: ["miasma", "snipe"],
+  cannoneer: ["volley", "quake"],
+  spellblade: ["shadowstep", "whirl"],
+  templar: ["fortify", "bless"],
+  bomber: ["volley", "push"],
+  golem: ["push", "quake"],
+  vampire: ["shadowstep", "behead"],
+  illusionist: ["shadowstep", "miasma"],
+  warlord: ["rally", "whirl"],
+  archmage: ["thunder", "frostnova"],
+  phoenix: ["mend", "volley"],
+  skeleton: ["fortify", "whirl"],
+  imp: ["dash", "shadowstep"],
+  demon: ["quake", "whirl"],
+};
+
+/** 이 레벨에서 쓸 수 있는 능력 목록: 기본 능력 + 열린 레벨 스킬 */
+export function abilitiesAt(key, lv = 1) {
+  const out = [];
+  if (PIECES[key].ability) out.push(PIECES[key].ability);
+  const L = LEVEL_SKILLS[key];
+  if (L && lv >= 2) out.push(SKILLS[L[0]]);
+  if (L && lv >= 3) out.push(SKILLS[L[1]]);
+  return out;
+}

@@ -206,6 +206,25 @@ export class BoardView {
     const dist = Math.hypot(cx - vp.cx, cy - vp.cy);
     vp.cx = cx;
     vp.cy = cy;
+    if (style === "slide" || style === "dash") {
+      // 밀려나기 / 돌격: 뛰지 않고 미끄러지듯 빠르게
+      const c = this.clock, x0 = vp.x, y0 = vp.y, x1 = cellCX(cx), y1 = cellFeet(cy);
+      vp.sq.kick(style === "dash" ? 14 : -8);
+      if (style === "dash") this.sound("whoosh", x0, { vol: 0.7 });
+      await c.tween(style === "dash" ? 0.12 + dist * 0.03 : 0.16 + dist * 0.05, (u) => {
+        vp.x = x0 + (x1 - x0) * u;
+        vp.y = y0 + (y1 - y0) * u;
+        vp.z = style === "dash" ? Math.sin(u * Math.PI) * 3 : 0;
+        vp.tilt = Math.sign(x1 - x0) * (style === "dash" ? 0.18 : -0.12) * Math.sin(u * Math.PI);
+      }, style === "dash" ? E.inQuad : E.outCubic);
+      vp.z = 0;
+      vp.tilt = 0;
+      vp.sq.v = 1.3;
+      this.spawnFx(FX.dust, { x: x1, y: y1, power: 1.2 });
+      this.sound(style === "dash" ? "land" : "crush", x1, { vol: 0.7 });
+      this.kickShake(1.5);
+      return;
+    }
     const leap = style === "leap";
     await this.hop(vp, cellCX(cx), cellFeet(cy), {
       height: leap ? 18 : style === "advance" ? 6 : 5 + dist * 2.2,
@@ -279,7 +298,7 @@ export class BoardView {
       this.float(`막음 ${ev.absorbed}`, vp.x - 8, vp.y - 34, "#ffe9a0", { delay: 0.05 });
     }
     const col = ev.poison ? "#9dff5a" : ev.crit ? "#ffe45c" : vp.team === "enemy" ? "#ffffff" : "#ff8a8a";
-    if (ev.dmg > 0 || !ev.absorbed) this.float(String(ev.dmg), vp.x, vp.y - 24, col, { big: ev.crit || ev.dmg >= 4 });
+    if (ev.dmg > 0 || !ev.absorbed) this.float(String(ev.dmg), vp.x, vp.y - 24, col, { big: ev.crit || ev.snipe || ev.dmg >= 4 });
     if (ev.counter) this.float("반격", vp.x + 8, vp.y - 34, "#ffd47a", { delay: 0.08 });
     if (ev.thorns) this.float("가시", vp.x + 8, vp.y - 34, "#b8ff8a", { delay: 0.05 });
     if (ev.exec) this.float("처형!", vp.x, vp.y - 36, "#ff7a7a", { big: true, delay: 0.05 });
@@ -459,6 +478,14 @@ export class BoardView {
           await flushRecover();
           const a = this.vps.get(ev.a), b = this.vps.get(ev.b);
           await Promise.all([a && this.moveTo(a, ev.pb.x, ev.pb.y, "blink"), b && this.moveTo(b, ev.pa.x, ev.pa.y, "blink")]);
+          break;
+        }
+        case "cleanse": {
+          const vp = this.vps.get(ev.id);
+          if (!vp) break;
+          vp.frozen = false;
+          vp.poison = 0;
+          this.float("정화", vp.x, vp.y - 34, "#fffbe0", { delay: 0.1 });
           break;
         }
         case "haste": {
@@ -645,6 +672,127 @@ export class BoardView {
       case "swap":
         this.spawnFx(FX.warp, { x: vp.x, y: vp.y - BODY, palette: FX.PALS.arcane });
         this.sound("blink", vp.x);
+        await c.tween(0.15, (u) => (vp.z = 6 * (1 - u)));
+        break;
+      // ── 레벨 스킬 연출 ──
+      case "fortify":
+        this.spawnFx(FX.impact, { x: vp.x, y: vp.y - BODY, kind: "spark", palette: FX.PALS.steel, size: 0.8 });
+        this.sound("metal", vp.x);
+        await c.tween(0.15, (u) => (vp.z = 6 * (1 - u)), E.inQuad);
+        vp.sq.v = 1.4;
+        break;
+      case "rally":
+        this.spawnFx(FX.warp, { x: vp.x, y: vp.y - BODY, palette: FX.PALS.holy });
+        this.sound("promote", vp.x);
+        this.float("격려!", vp.x, vp.y - 36, "#ffe07a", { big: true });
+        await c.tween(0.3, (u) => (vp.z = 6 * (1 - u)), E.outBack);
+        break;
+      case "mend":
+        await c.tween(0.15, (u) => (vp.z = 6 * (1 - u)));
+        break;
+      case "whirl": {
+        this.sound("whoosh", vp.x);
+        this.sound("slash", vp.x, { delay: 0.12 });
+        await c.tween(0.32, (u) => {
+          vp.tilt = u * Math.PI * 2;
+          vp.z = 6 * (1 - u);
+        }, E.outCubic);
+        vp.tilt = 0;
+        this.spawnFx(FX.strike, { x: vp.x, y: vp.y - BODY, style: "ring", palette: vp.lv >= 3 ? FX.PALS.holy : FX.PALS.steel, size: 1.8 });
+        for (let i = 0; i < 4; i++) this.spawnFx(FX.strike, { x: vp.x, y: vp.y - BODY, angle: (i * Math.PI) / 2, style: "arc", palette: FX.PALS.steel, size: 1.2 });
+        this.kickShake(2.5);
+        break;
+      }
+      case "frostnova":
+        this.spawnFx(FX.impact, { x: vp.x, y: vp.y - BODY, kind: "ice", palette: FX.PALS.ice, size: 1.8 });
+        this.spawnFx(FX.freeze, { x: vp.x, y: vp.y });
+        this.sound("shatterIce", vp.x);
+        await c.tween(0.15, (u) => (vp.z = 6 * (1 - u)), E.inQuad);
+        this.kickShake(2.5);
+        break;
+      case "quake":
+        await c.tween(0.12, (u) => (vp.z = 6 + 8 * u), E.outQuad);
+        await c.tween(0.08, (u) => (vp.z = 14 * (1 - u)), E.inQuad);
+        this.spawnFx(FX.strike, { x: vp.x, y: vp.y - BODY, style: "slam", palette: FX.PALS.stone, size: 1.8 });
+        this.spawnFx(FX.dust, { x: vp.x, y: vp.y, power: 2 });
+        this.sound("crush", vp.x);
+        this.sound("boom", vp.x, { vol: 0.7 });
+        this.kickShake(5);
+        this.punch = 0.8;
+        this.clock.hitstop(0.08);
+        vp.sq.v = 1.5;
+        break;
+      case "dash":
+        this.float("돌격!", vp.x, vp.y - 34, "#ffd47a");
+        await c.tween(0.1, (u) => (vp.z = 6 * (1 - u)));
+        break;
+      case "shadowstep":
+        this.spawnFx(FX.warp, { x: vp.x, y: vp.y - BODY, palette: FX.PALS.shadow });
+        this.sound("shadow", vp.x);
+        await c.tween(0.12, (u) => (vp.z = 6 * (1 - u)));
+        break;
+      case "push": {
+        const rec = await this.lunge(vp, tx, ty);
+        this.spawnFx(FX.strike, { x: tx, y: ty - BODY, style: "ring", palette: FX.PALS.steel, size: 1.2 });
+        this.sound("hitHeavy", tx);
+        vp.z = 0;
+        return rec;
+      }
+      case "behead": {
+        const rec = await this.lunge(vp, tx, ty);
+        this.spawnFx(FX.strike, { x: tx, y: ty - BODY, angle: -Math.PI / 2, style: "arc", palette: FX.PALS.blood, size: 1.6 });
+        this.sound("chop", tx);
+        vp.z = 0;
+        return rec;
+      }
+      case "volley": {
+        const sx = vp.x, sy = vp.y - BODY - 6;
+        this.sound("draw", sx);
+        for (let i = 0; i < 6; i++) {
+          const ox = ((i % 3) - 1) * 26, oy = (Math.floor(i / 3) - 0.5) * 26;
+          const dx = tx + ox - sx, dy = ty - BODY + oy - sy;
+          this.spawnFx(FX.projectile, { x: sx, y: sy, dx, dy, kind: "arrow", palette: FX.PALS.steel, time: 0.3 + i * 0.04 });
+        }
+        await c.tween(0.36, (u) => (vp.z = 6 * (1 - u)));
+        this.sound("thunk", tx);
+        this.sound("thunk", tx, { delay: 0.08 });
+        for (let i = 0; i < 4; i++) this.spawnFx(FX.impact, { x: tx + ((i % 2) - 0.5) * 30, y: ty - BODY + (Math.floor(i / 2) - 0.5) * 30, kind: "spark", palette: FX.PALS.steel, size: 0.6 });
+        break;
+      }
+      case "miasma": {
+        const sx = vp.x, sy = vp.y - BODY - 6, time = 0.35;
+        this.spawnFx(FX.projectile, { x: sx, y: sy, dx: tx - sx, dy: ty - BODY - sy, kind: "poison", palette: FX.PALS.poison, time });
+        this.sound("shadow", sx);
+        await c.tween(time, (u) => (vp.z = 6 * (1 - u)));
+        this.spawnFx(FX.impact, { x: tx, y: ty - BODY, kind: "poison", palette: FX.PALS.poison, size: 2.2 });
+        for (let i = 0; i < 4; i++) this.spawnFx(FX.impact, { x: tx + ((i % 2) - 0.5) * 34, y: ty - BODY + (Math.floor(i / 2) - 0.5) * 30, kind: "poison", palette: FX.PALS.poison, size: 0.8 });
+        this.sound("shadowHit", tx);
+        break;
+      }
+      case "snipe": {
+        await this.recoil(vp, tx, ty);
+        const sx = vp.x, sy = vp.y - BODY - 2, dx = tx - sx, dy = ty - BODY - sy;
+        const time = Math.max(0.08, Math.hypot(dx, dy) / 900);
+        this.spawnFx(FX.projectile, { x: sx, y: sy, dx, dy, kind: "arrow", palette: FX.PALS.holy, time });
+        this.sound("draw", sx);
+        await c.wait(time);
+        this.spawnFx(FX.levelBurst, { x: tx, y: ty - BODY, tier: 3 });
+        this.sound("thunk", tx);
+        this.float("저격!", tx, ty - 40, "#ffe07a", { big: true });
+        break;
+      }
+      case "thunder":
+        this.spawnFx(FX.chain, { x: tx, y: ty - 150, path: [[0, 0], [6, 50], [-4, 100], [0, 150 - BODY]], palette: FX.PALS.storm });
+        this.sound("zap", tx);
+        await c.tween(0.15, (u) => (vp.z = 6 * (1 - u)));
+        this.spawnFx(FX.impact, { x: tx, y: ty - BODY, kind: "storm", palette: FX.PALS.storm, size: 1.4 });
+        this.sound("laser", tx);
+        this.kickShake(3.5);
+        this.punch = 0.6;
+        break;
+      case "bless":
+        this.spawnFx(FX.promote, { x: tx, y: ty, palette: FX.PALS.holy });
+        this.sound("heal", tx);
         await c.tween(0.15, (u) => (vp.z = 6 * (1 - u)));
         break;
       case "smite":

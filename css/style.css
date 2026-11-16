@@ -294,6 +294,9 @@ button { font: inherit; color: inherit; }
 .lvlist li.lv2 b { background: #6fa8ff; }
 .lvlist li.lv3 b { background: #ffd45a; }
 .lvlist li em { font-style: normal; color: var(--brass-hi); }
+.lvlist .skill i { font-style: normal; font-family: "Galmuri9"; font-size: 10px; background: #b072f0; color: #12101a; padding: 1px 4px; }
+.lvlist .skill em { color: #e2c8ff; }
+.unit-card .ab.cooling { opacity: .55; }
 .lvlist li.locked { opacity: .45; }
 .lvlist li.got.lv2 { box-shadow: inset 2px 0 0 #6fa8ff; }
 .lvlist li.got.lv3 { box-shadow: inset 2px 0 0 #ffd45a; }

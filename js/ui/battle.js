@@ -1,6 +1,6 @@
 // 전투 화면 진행: 출전(run) → 웨이브 → 재배치 → 다음 웨이브 ... → 종료.
 // 죽은 기물은 그 출전에서 돌아오지 않아요. 살아남은 기물은 체력이 조금(최대치의 20%) 회복돼요.
-import { PIECES, levelBonus, TRAITS, LEVEL_TRAITS } from "../data/pieces.js";
+import { PIECES, levelBonus, TRAITS, LEVEL_TRAITS, abilitiesAt } from "../data/pieces.js";
 import { makeWave, waveReward, killReward } from "../data/waves.js";
 import { load, save, slotToCell, cellToSlot, markSeen, recordRun } from "../save.js";
 import {
@@ -556,7 +556,7 @@ function refreshCard() {
   if (u.poison) status.push(`중독 ${u.poison}턴`);
   if (u.shield) status.push(`보호막 ${u.shield}`);
   if (def.passive === "rebirth") status.push(u.reborn ? "환생 사용함" : "환생 준비");
-  if (def.ability && u.cd > 0) status.push(`${def.ability.name} ${u.cd - (battle.turn === u.team ? 0 : 1)}턴 뒤`);
+  // (재사용 대기는 아래 능력 목록에 표시)
   if (u.atk > def.atk && u.team === "ally") status.push(`공격 +${u.atk - def.atk}`);
   el.replaceChildren(
     h("div", { class: "head" },
@@ -566,7 +566,10 @@ function refreshCard() {
     h("div", { class: "hpbar " + (u.team === "enemy" ? "enemy" : "") }, h("i", { style: `width:${(u.hp / u.maxHp) * 100}%` })),
     h("div", { class: "row" }, h("span", {}, "체력 ", h("b", {}, `${u.hp}/${u.maxHp}`)), h("span", {}, "공격 ", h("b", {}, u.atk)), h("span", {}, def.style === "ranged" ? "원거리" : "근접")),
     h("p", {}, def.desc),
-    abilityLine(def) ?? "",
+    ...abilitiesAt(u.key, u.lv ?? 1).map((ab) => {
+      const cd = Math.max(0, (u.cds?.[ab.id] ?? 0) - (battle.turn === u.team ? 0 : 1));
+      return h("div", { class: "ab ability" + (cd ? " cooling" : "") }, h("b", {}, ab.name), cd ? ` (${cd}턴 뒤 사용 가능)` : ` (재사용 ${ab.cd}턴)`, `: ${ab.desc}`);
+    }),
     (u.lv ?? 1) > 1 && LEVEL_TRAITS[u.key]
       ? h("div", { class: "ab lvtraits" }, h("b", {}, "레벨 특성 "), LEVEL_TRAITS[u.key].slice(0, u.lv - 1).map((t) => `${TRAITS[t].name}: ${TRAITS[t].desc}`).join(" "))
       : "",
@@ -589,7 +592,7 @@ function narrate(u, act, evs, names = new Map()) {
     if (e.t === "move" && e.style !== "advance") parts.push(`${who} 이동`);
     else if (e.t === "ability") parts.push(`${who}의 ${e.name}`);
     else if (e.t === "hit") {
-      parts.push(`${names.get(e.id) ?? "상대"} -${e.dmg}${e.crit ? " (급습)" : ""}`);
+      parts.push(`${names.get(e.id) ?? "상대"} -${e.dmg}${e.crit ? " (급습)" : e.exec ? " (처형)" : ""}`);
     } else if (e.t === "death") parts.push(`${PIECES[e.key].name} 쓰러짐`);
     else if (e.t === "spawn") parts.push(`${PIECES[e.unit.key].name} 등장`);
     else if (e.t === "heal") parts.push(`회복 +${e.amount}`);
