@@ -1,5 +1,7 @@
 # Chaos Chess (카오스체스)
 
+![Chaos Chess](assets/thumbnail.gif)
+
 기물마다 능력이 다른 체스 응용 턴제 웨이브 게임이에요. 브라우저에서 바로 돌아가고 빌드 과정이 없어요.
 
 ## 실행
@@ -81,6 +83,10 @@ GitHub Pages(`gh-pages` 브랜치)로 배포해요. 배포 전에 `python3 tools
 | 전쟁군주 | 영웅 | 옆의 아군 공격력 +1 |
 | 대마법사 | 전설 | 운석: 판 어디든 3×3 범위 3 피해 |
 | 불사조 | 전설 | 출전마다 한 번 쓰러져도 환생 |
+
+## 썸네일
+
+`assets/thumbnail.gif`는 `dev/thumbnail.html`의 연출 장면을 실제 게임 엔진으로 재생하고, 가짜 시계로 1/25초씩 넘기며 캡처해 만듭니다. 다시 만들려면 정적 서버를 켠 뒤 `bash tools/make-thumbnail.sh`.
 
 ## 테스트
 

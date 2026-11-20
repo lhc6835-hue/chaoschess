@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Chaos Chess thumbnail</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  /* 썸네일 촬영용: 시간을 직접 넘기며 캡처하므로 CSS 애니메이션은 끔 (JS로만 움직임) */
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  html, body { width: 1280px; height: 720px; overflow: hidden; }
+  body { background: #120c19; }
+  #stage { position: relative; width: 1280px; height: 720px; }
+  #board { position: absolute; left: 64px; top: 68px; width: 576px; height: 584px; }
+  #side { position: absolute; left: 700px; top: 92px; width: 540px; }
+  .logo-chaos { font-size: 150px !important; }
+  .logo-chess i { font-size: 38px !important; }
+  .tag { font-family: "Galmuri11"; font-size: 19px; color: var(--bone); margin: 26px 0 0 6px; line-height: 1.7; text-shadow: 0 2px 0 var(--edge); }
+  .tag b { color: var(--brass-hi); font-weight: 700; }
+  #parade { position: absolute; left: 700px; top: 470px; image-rendering: pixelated; }
+  .chips { position: absolute; left: 706px; top: 640px; display: flex; gap: 10px; }
+  .chips span { font-family: "Galmuri9"; font-size: 13px; color: #12101a; padding: 3px 8px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="board" class="board-host"></div>
+  <div id="side">
+    <h1 class="logo" aria-label="Chaos Chess">
+      <span class="logo-chaos" aria-hidden="true"><span style="--r:-7deg;--y:-4px">C</span><span style="--r:5deg;--y:6px">h</span><span style="--r:-4deg;--y:-2px">a</span><span style="--r:8deg;--y:5px">o</span><span style="--r:-6deg;--y:-6px">s</span></span>
+      <span class="logo-chess" aria-hidden="true"><i>C</i><i>H</i><i>E</i><i>S</i><i>S</i></span>
+    </h1>
+    <p class="tag">능력이 다른 <b>36종</b>의 기물로<br>몰려오는 웨이브를 막아내세요.</p>
+  </div>
+  <canvas id="parade" width="540" height="150"></canvas>
+  <div class="chips">
+    <span style="background:#b9b2a3">Lv1</span>
+    <span style="background:#6fa8ff">Lv2 새 스킬</span>
+    <span style="background:#ffd45a">Lv3 새 스킬</span>
+  </div>
+</div>
+<script type="module">
+import { BoardView } from "../js/render/board-view.js";
+import { initBackdrop, setBackdrop } from "../js/render/backdrop.js";
+import { cover, reveal } from "../js/ui/transition.js";
+import { sprite } from "../js/render/sprites.js";
+import { createBattle, makeUnit, applyLevel, resolve, byId } from "../js/game/battle.js";
+
+window.__moonPos = [0.94, 0.17];
+initBackdrop();
+const canvas = document.createElement("canvas");
+document.getElementById("board").append(canvas);
+const view = new BoardView(canvas);
+view.quiet = true;
+
+// ── 오른쪽 아래: Lv1 → Lv2 → Lv3 기물 행진 (JS로 통통 튐) ──
+const parade = document.getElementById("parade"), pg = parade.getContext("2d");
+pg.imageSmoothingEnabled = false;
+const PARADE = [["knight", 1], ["knight", 2], ["knight", 3], ["dragon", 3], ["phoenix", 3], ["archmage", 3]];
+function drawParade(t) {
+  pg.clearRect(0, 0, parade.width, parade.height);
+  PARADE.forEach(([k, lv], i) => {
+    const s = sprite(k, "ally", lv), Z = 4;
+    const ph = (t / 1000) * 3.2 - i * 0.55;
+    const hop = Math.max(0, Math.sin(ph)) * 10;
+    const sq = 1 + (hop < 1 ? 0.12 : -0.06);
+    const w = s.w * Z * sq, hh = s.h * Z / sq, x = 14 + i * 88 + 44 - w / 2, y = 140 - hh - hop;
+    pg.fillStyle = "rgba(10, 6, 16, .45)";
+    pg.beginPath();
+    pg.ellipse(14 + i * 88 + 44, 140, 26 - hop, 6, 0, 0, Math.PI * 2);
+    pg.fill();
+    pg.drawImage(s.img, Math.round(x), Math.round(y), Math.round(w), Math.round(hh));
+  });
+  requestAnimationFrame(drawParade);
+}
+requestAnimationFrame(drawParade);
+
+// ── 장면 상태 ──
+function build() {
+  const s = createBattle({ wave: 10, seed: 3 });
+  const A = (key, x, y, lv) => applyLevel(makeUnit(s, key, "ally", x, y), lv);
+  const E = (key, x, y, hp, lv = 1) => {
+    const u = applyLevel(makeUnit(s, key, "enemy", x, y), lv);
+    if (hp) u.hp = u.maxHp = hp;
+    return u;
+  };
+  const u = {
+    king: A("king", 4, 7, 3), queen: A("queen", 3, 7, 2), golem: A("golem", 2, 6, 2), knight: A("knight", 4, 6, 3),
+    pyro: A("pyro", 1, 7, 3), storm: A("storm", 6, 5, 3), archmage: A("archmage", 0, 6, 3), bishop: A("bishop", 5, 7, 3),
+    archer: A("archer", 7, 6, 2), pawn1: A("pawn", 3, 6, 2), pawn2: A("pawn", 5, 6, 1), shield: A("shield", 6, 7, 2),
+    demon: E("demon", 4, 1, 4, 1), imp: E("imp", 4, 2, 2), imp2: E("imp", 5, 2, 2), pawnE: E("pawn", 6, 2, 2),
+    rookE: E("rook", 1, 1, 3), knightE: E("knight", 2, 0, 3), bishopE: E("bishop", 1, 0, 3), pawnE2: E("pawn", 2, 2, 3),
+    archerE: E("archer", 7, 1, 2), skelE: E("pawn", 0, 2, 3), rookE2: E("rook", 6, 1, 2), impE3: E("imp", 7, 2, 2),
+  };
+  return { s, u };
+}
+let S;
+function reset() {
+  S = build();
+  view.vps.clear();
+  view.fx = [];
+  view.sync(S.s, { snap: true });
+}
+reset();
+
+const wait = (sec) => view.clock.wait(sec);
+async function act(a) {
+  const evs = resolve(S.s, a);
+  await view.play(evs);
+  view.sync(S.s);
+}
+
+window.__scene = async () => {
+  window.__phase = "play";
+  const beat = () => wait(0.45);
+  const pick = async (unit) => {
+    view.selected = unit.id;
+    const vp = view.vps.get(unit.id);
+    if (vp) (vp.sq.v = 0.8), (vp.sq.vel = 0);
+    await wait(0.4);
+    view.selected = null;
+  };
+  await wait(0.6);
+  // 1) Lv3 나이트 돌격: 일직선으로 달려가 임프를 벰
+  await pick(S.u.knight);
+  await act({ kind: "ability", id: S.u.knight.id, x: 4, y: 2, ability: "dash" });
+  await beat();
+  // 2) 마왕의 지옥불 반격 (나이트의 가시가 되받아침)
+  await act({ kind: "attack", id: S.u.demon.id, x: 4, y: 3, hits: [S.u.knight.id], dir: [0, 1] });
+  await beat();
+  // 3) 뇌전술사 연쇄 번개
+  await pick(S.u.storm);
+  await act({ kind: "attack", id: S.u.storm.id, x: 6, y: 2, hits: [S.u.pawnE.id], dir: [0, -1] });
+  await beat();
+  // 4) 화염술사 화염구: 오른쪽 무리
+  await pick(S.u.pyro);
+  await act({ kind: "ability", id: S.u.pyro.id, x: 6, y: 1, ability: "fireball" });
+  await beat();
+  // 5) 대마법사 운석: 왼쪽 무리를 한 번에
+  await pick(S.u.archmage);
+  await act({ kind: "ability", id: S.u.archmage.id, x: 1, y: 1, ability: "meteor" });
+  await beat();
+  // 6) 비숍 낙뢰로 마왕 마무리
+  await pick(S.u.bishop);
+  await act({ kind: "ability", id: S.u.bishop.id, x: 4, y: 1, ability: "thunder" });
+  await wait(1.0);
+  // 7) 체스판 전환으로 덮고 처음 장면으로 걷어 반복 재생이 이어지게
+  await cover("board");
+  reset();
+  await reveal();
+  window.__phase = "done";
+};
+window.__ready = true;
+</script>
+</body>
+</html>

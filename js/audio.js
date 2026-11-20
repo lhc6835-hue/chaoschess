@@ -11,7 +11,7 @@ const VARIANTS = {
 const JINGLES = ["waveStart", "boss", "victory", "gameOver"];
 const BASE = "assets/audio/";
 const PREF_KEY = "chaoschess.audio.v1";
-const VER = "?v=20261116072012"; // 음원을 바꾸면 올려서 브라우저 캐시를 비워요
+const VER = "?v=20261120034737"; // 음원을 바꾸면 올려서 브라우저 캐시를 비워요
 
 let ctx = null, master, musicBus, sfxBus, duckGain;
 const buffers = new Map();

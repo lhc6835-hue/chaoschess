@@ -112,7 +112,9 @@ function draw() {
   }
   g.globalAlpha = 1;
   // 달 + 후광
-  const mx = Math.round(W * 0.78 - px * 4), my = Math.round(H * 0.22 - py * 3), mr = 15;
+  // 달 위치 (썸네일처럼 다른 구도가 필요하면 window.__moonPos = [x비율, y비율])
+  const [mfx, mfy] = window.__moonPos ?? [0.78, 0.22];
+  const mx = Math.round(W * mfx - px * 4), my = Math.round(H * mfy - py * 3), mr = 15;
   for (let r = mr + 14; r > mr; r -= 3) {
     g.globalAlpha = 0.05 + (0.06 * (mr + 14 - r)) / 14;
     disc(mx, my, r, col("glow"));

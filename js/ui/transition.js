@@ -70,8 +70,8 @@ function drawTiles(gr, colors, prog, mode) {
 function anim(dur, fn) {
   return new Promise((done) => {
     const t0 = performance.now();
-    const step = (now) => {
-      const u = clamp((now - t0) / (dur * 1000));
+    const step = () => {
+      const u = clamp((performance.now() - t0) / (dur * 1000)); // rAF 타임스탬프 대신 같은 시계로 잼
       fn(u);
       if (u < 1) requestAnimationFrame(step);
       else done();
